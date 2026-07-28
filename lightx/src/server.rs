@@ -64,6 +64,7 @@ pub trait ContextFactory: Send + Sync + 'static {
         peer_addr: std::net::IpAddr,
         headers: hyper::HeaderMap,
         raw_body: Bytes,
+        raw_req: Option<Request<Incoming>>,
     ) -> Self::Context;
 
     fn commit_context<'a>(
@@ -84,55 +85,90 @@ pub trait Router: Send + Sync + 'static {
 }
 
 async fn handle_request<C: Send + 'static>(
-    req: Request<Incoming>,
+    mut req: Request<Incoming>,
     factory: Arc<dyn ContextFactory<Context = C>>,
     router: Arc<dyn Router<Context = C>>,
     peer_addr: std::net::IpAddr,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
-    let (parts, body) = req.into_parts();
-    let headers = parts.headers;
-
-    // 1. Read the HTTP request body with strict size limit (anti-OOM / Buffer Overflow)
-    let body_bytes = match Limited::new(body, MAX_BODY_SIZE).collect().await {
-        Ok(collected) => collected.to_bytes(),
-        Err(e) => {
-            // Distinguish between a size limit error and a generic body read error
-            let err_str = format!("{e}");
-            if err_str.contains("length limit") {
-                return Ok(payload_too_large());
-            }
-            return Ok(bad_request(
-                "{\"code\":400,\"error\":\"Invalid body payload\"}",
-            ));
-        }
+    let is_ws = {
+        let has_upgrade = req
+            .headers()
+            .get_all(hyper::header::UPGRADE)
+            .iter()
+            .any(|v| {
+                if let Ok(s) = v.to_str() {
+                    s.split(',')
+                        .any(|part| part.trim().eq_ignore_ascii_case("websocket"))
+                } else {
+                    false
+                }
+            });
+        let has_connection = req
+            .headers()
+            .get_all(hyper::header::CONNECTION)
+            .iter()
+            .any(|v| {
+                if let Ok(s) = v.to_str() {
+                    s.split(',')
+                        .any(|part| part.trim().eq_ignore_ascii_case("upgrade"))
+                } else {
+                    false
+                }
+            });
+        has_upgrade && has_connection
     };
 
-    // 2. Store raw body bytes directly (zero-copy: no HashMap<String,String> intermediate)
-    let raw_body = body_bytes;
-
     let mut client_ip = peer_addr;
-    if let Some(xff) = headers.get("x-forwarded-for") {
+    if let Some(xff) = req.headers().get("x-forwarded-for") {
         if let Ok(s) = xff.to_str()
             && let Some(first) = s.split(',').next()
             && let Ok(ip) = first.trim().parse()
         {
             client_ip = ip;
         }
-    } else if let Some(xreal) = headers.get("x-real-ip")
+    } else if let Some(xreal) = req.headers().get("x-real-ip")
         && let Ok(s) = xreal.to_str()
         && let Ok(ip) = s.trim().parse()
     {
         client_ip = ip;
     }
 
-    // 3. Initialize the Request Context via Factory
-    let mut ctx = factory.create_context(client_ip, headers, raw_body);
+    let method;
+    let uri;
+    let mut ctx;
+
+    if is_ws {
+        // Refactored to ZER0-ALLOCATION: we extract headers structurally via mem::take.
+        let headers = std::mem::take(req.headers_mut());
+        method = req.method().clone();
+        uri = req.uri().clone();
+        ctx = factory.create_context(client_ip, headers, Bytes::new(), Some(req));
+    } else {
+        let (parts, body) = req.into_parts();
+
+        // 1. Read the HTTP request body with strict size limit (anti-OOM / Buffer Overflow)
+        let body_bytes = match Limited::new(body, MAX_BODY_SIZE).collect().await {
+            Ok(collected) => collected.to_bytes(),
+            Err(e) => {
+                // Distinguish between a size limit error and a generic body read error
+                let err_str = format!("{e}");
+                if err_str.contains("length limit") {
+                    return Ok(payload_too_large());
+                }
+                return Ok(bad_request(
+                    "{\"code\":400,\"error\":\"Invalid body payload\"}",
+                ));
+            }
+        };
+
+        method = parts.method;
+        uri = parts.uri;
+        let headers = parts.headers;
+        ctx = factory.create_context(client_ip, headers, body_bytes, None);
+    }
 
     // 4. Delegate to the statically generated O(1) router
-    let response = match router
-        .route(parts.method.as_str(), parts.uri.path(), &mut ctx)
-        .await
-    {
+    let response = match router.route(method.as_str(), uri.path(), &mut ctx).await {
         Ok(mut raw_resp) => {
             // 5. Transaction Management (COMMIT via Factory)
             if let Err(e) = factory.commit_context(&mut ctx).await {
@@ -239,7 +275,7 @@ async fn handle_request<C: Send + 'static>(
 /// struct DummyFactory;
 /// impl ContextFactory for DummyFactory {
 ///     type Context = ();
-///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes) -> () { () }
+///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
@@ -338,7 +374,7 @@ fn not_found() -> Response<Full<Bytes>> {
 /// struct DummyFactory;
 /// impl ContextFactory for DummyFactory {
 ///     type Context = ();
-///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes) -> () { () }
+///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
@@ -367,7 +403,9 @@ pub async fn listen<C: Send + 'static>(
             // Anti-Slowloris: enforce connection timeout
             let result = tokio::time::timeout(
                 CONNECTION_TIMEOUT,
-                http1::Builder::new().serve_connection(io, hyper_svc),
+                http1::Builder::new()
+                    .serve_connection(io, hyper_svc)
+                    .with_upgrades(),
             )
             .await;
             match result {
@@ -404,7 +442,7 @@ pub async fn listen<C: Send + 'static>(
 /// struct DummyFactory;
 /// impl ContextFactory for DummyFactory {
 ///     type Context = ();
-///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes) -> () { () }
+///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
@@ -479,7 +517,9 @@ pub async fn listen_tls<C: Send + 'static>(
 
                     let result = tokio::time::timeout(
                         CONNECTION_TIMEOUT,
-                        http1::Builder::new().serve_connection(io, hyper_svc),
+                        http1::Builder::new()
+                            .serve_connection(io, hyper_svc)
+                            .with_upgrades(),
                     )
                     .await;
                     match result {

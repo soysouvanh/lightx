@@ -37,7 +37,7 @@ async fn run_dao() -> Result<(), Box<dyn std::error::Error>> {
     let mut ctx = RequestContext::new_sandbox_context().await.unwrap();
 
     println!(" Searching for currency 'EUR'...");
-    let currency = Currencies::get_by_pk(&mut ctx, "EUR".to_string()).await?;
+    let currency = Currencies::get_by_pk(&mut ctx, "EUR").await?;
 
     if let Some(c) = currency {
         println!(" Currency found: {} ({})", c.name, c.code);

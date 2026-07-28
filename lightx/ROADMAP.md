@@ -272,24 +272,87 @@ Here is the mapping of the remaining strategic workstreams to achieve this visio
   - **Step 3 (Global):** Physically build the software integration to the standards of the **TechEmpower Web Framework Benchmarks** by preparing an official PR to send to their central repository.
 - **Acceptance Criteria:** Eligibility validated for the official global TechEmpower ranking (TEB), the framework mathematically certifying to be part of the global TOP of the Rust ecosystem.
 
+## </details>
+
+## Phase 4: Real-time web interface and server frontend
+
+<details>
+<summary>[x] 4.1. Native Template Engine "zero-overhead" & HTML / HTMX</summary>
+
+- **Objective:** Offer the human the possibility to architect UI Interfaces without sacrificing to the monumental dependencies of application frameworks like React.
+- **Specifications (do not interpret):**
+  - **Step 1 (`Cargo.toml` & `handler_generator.rs`):** Formally integrate the in-house `tmplx` engine ensuring the absence of runtime parsing. Force `handler_generator.rs` to intercept routes marked `type = "html"` in the TOML, to abstain from all JSON, and to generate the static call `.render()` on the DTO returned by the Business Objects.
+  - **Step 2 (`handler_generator.rs`):** Provide the final restitution contract in the form of generated structures that will transpose the rendering of the HTML engine by building and releasing the complete `hyper::Response` (Phase 3.1) obligatorily endowed with its absolute header `Content-Type: text/html; charset=utf-8`.
+- **Acceptance Criteria:** Irremediably prevent the compilation of a source file if the developer returns in Rust a component or a value name that does not exist for its coupled HTML page.
+
+</details>
+
+<details>
+<summary>[x] 4.2. Persistent asynchronous protocol (declarative WebSocket)</summary>
+
+- **Objective:** Support massive temporal tunnels to guarantee the instantaneous continuous exchange of client requests in masked time.
+- **Specifications (do not interpret):**
+  - **Step 1 (`server.rs` & `dao_generator.rs`):** Manage the streaming ascent (Upgrade Connection) of `hyper`. Fatal architectural warning: The current architecture performs a `.collect()` (Phase 0.2) incompatible with an infinite TCP WebSocket network stream. `server.rs` MUST intercept the `Upgrade: websocket` header and suspend its buffered read. To transmit this socket to the router, force `dao_generator.rs` to generate the dedicated field `pub raw_req: Option<lightx::ext::hyper::Request<lightx::ext::hyper::body::Incoming>>` in the `RequestContext`. `server.rs` will inject the unconsumed request there.
+  - **Step 2 (`handler_generator.rs`):** For target TOML routes `type = "websocket"`, generate an asynchronous event loop (e.g., `tokio-tungstenite`) anchored in the AOP handler. This firewall will deserialize and validate the JSON structure of each raw incoming WS frame before relaying the clean business object to the Business Object, ensuring a bulletproof real-time pipeline.
+- **Acceptance Criteria:** Perfect tolerance to the non-blocking orchestration of the channel with formal certainty of JSON Payloads (the real-time flow must intercept corrupted data in flight without making the TCP thread of the interface panic).
+
 </details>
 
 ---
 
-## Phase 4: Real-time web interface and server frontend
+## Phase 5: Industrial Ecosystem & Architectural Security
 
-### [ ] 4.1. "Zero-overhead" native template engine & HTML / HTMX
+<details>
+<summary>[ ] 5.1. Shared State & Telecasting (Pub/Sub WebSocket)</summary>
 
-- **Objective:** Offer humans the possibility of architecting UI Interfaces without sacrificing to the monumental dependencies of applicative frameworks like React.
+- **Objective:** Elevate the WebSocket layer from a simple asynchronous "Request-Response" mode to a server event architecture allowing multichannel Push.
 - **Specifications (do not interpret):**
-  - **Step 1 (`Cargo.toml` & `handler_generator.rs`):** Formally integrate the in-house `tmplx` engine guaranteeing the absence of parsing at runtime. Require `handler_generator.rs` to intercept routes marked `type = "html"` in TOML, abstain from any JSON, and generate the static `.render()` call on the DTO returned by Business Objects.
-  - **Step 2 (`handler_generator.rs`):** Provide the final restitution contract in the form of generated structures that will transpose the rendering of the HTML engine by building and releasing the complete `hyper::Response` (Phase 3.1) obligatorily endowed with its absolute header `Content-Type: text/html; charset=utf-8`.
-- **Acceptance Criteria:** Irremediably prevent the compilation of a source file if the developer returns in Rust a component or a value name that does not exist for its coupled HTML page.
+  - **Step 1 (`core.rs` & `server.rs`):** Statically inject a type-safe `GlobalState` within the `AppContextFactory`, powered by an MPMC channel (`tokio::sync::broadcast`) formally prohibiting the use of `std::sync::Mutex` (risk of blocking poison) for the exclusive benefit of limited asynchronous Mutexes or atomic structures.
+  - **Step 2 (`handler_generator.rs`):** Formally transform the sequential `ws.next().await` loop into a multiplexing architecture (via `tokio::select!`). This macro will simultaneously listen to the incoming TCP socket and the `rx` receiver of the MPMC channel, allowing the instantaneous emission of a JSON DTO without suspending client listening.
+- **Acceptance Criteria:** Validation via a unit test where a Database mutation by an "HTTP POST" Business Object unconditionally provokes the instant reception of a message across a pool of connected WebSocket clients without any temporal congestion.
 
-### [ ] 4.2. Persistent asynchronous protocol (declarative WebSocket)
+</details>
 
-- **Objective:** Support massive temporal tunnels to guarantee the instantaneous continuous exchange of client requests in masked time.
+<details>
+<summary>[ ] 5.2. Peripheral Global Shields (Middlewares)</summary>
+
+- **Objective:** Protect the pipeline even before URI resolution (Radix Trie) and standardize distribution rules to ensure scalability under massive attacks (Rate-Limiting, DDOS).
 - **Specifications (do not interpret):**
-  - **Step 1 (`server.rs` & `dao_generator.rs`):** Handle the ascent of the flow (Upgrade Connection) of `hyper`. **Fatal architectural warning**: The current architecture performs a `.collect()` (Phase 0.2) incompatible with an infinite TCP WebSocket network flow. `server.rs` MUST intercept the `Upgrade: websocket` header and suspend its buffered reading. To transmit this socket to the router, force `dao_generator.rs` to generate the dedicated field `pub raw_req: Option<lightx::ext::hyper::Request<lightx::ext::hyper::body::Incoming>>` in the `RequestContext`. `server.rs` will inject the unconsumed request into it.
-  - **Step 2 (`handler_generator.rs`):** For target TOML routes `type = "websocket"`, generate an asynchronous event loop (e.g. `tokio-tungstenite`) anchored in the AOP handler. This firewall will have to deserialize and validate the JSON structure of each raw incoming WS frame before relaying the clean business object to the Business Object, ensuring an impenetrable real-time pipeline.
-- **Acceptance Criteria:** Perfect tolerance to the non-blocking orchestration of the channel with formal certainty of JSON Payloads (the real-time flow must intercept corrupted data in flight without making the TCP thread of the interface panic).
+  - **Step 1 (`server.rs`):** Architect the implementation of the `middlewares.toml` directive by generating a strict native encapsulation layer (`tower::Layer`) encapsulating the Hyper `Service`. This layer will intercept the `Request<Incoming>` _before_ any context allocation (Strict CORS, HSTS Security Headers, IP Blocklist).
+  - **Step 2 (`cargo`):** Enrich the dependency tree with `tower-http` to rigorously implement the `CompressionLayer` and `DecompressionLayer` layers, guaranteeing Content-Encoding (GZIP/Brotli) negotiation via pure stream parsing without soliciting applicative RAM.
+- **Acceptance Criteria:** Asynchronous rejection of an illegitimate `wrk` HTTP request under 5 microseconds before it even enters the Radix Trie, securing the facade's DDOS resilience.
+
+</details>
+
+<details>
+<summary>[ ] 5.3. Static Routing & Delivery (Zero-Copy Assets)</summary>
+
+- **Objective:** Free the application from the systemic need of an external Proxy (Nginx) to massively deliver static files without exhausting Node RAM.
+- **Specifications (do not interpret):**
+  - **Step 1 (`core_generator.rs`):** Add a TOML sub-routing directive `type = "static"` parameterizing a terminal node of the Radix Trie pointing to a native service interfacing a raw stream (`tokio_util::io::ReaderStream`). The objective is to prohibit file RAM loading and force a _Zero-Copy_ Chunking transfer.
+  - **Step 2 (`build.rs`):** Guarantee that invalidation headers (Cache-Control, ETag) will not be subjected to any IO calculation by the Runtime. They must mathematically derive from cryptographic hashes (SHA-256) computed exclusively at generation time (Build Time) by the macro-engine.
+- **Acceptance Criteria:** The invariable securing of an `A+` rating under a comprehensive Lighthouse performance audit in local conditions, proving the perfect management of ETags and Cache Control.
+
+</details>
+
+<details>
+<summary>[ ] 5.4. Absolute Asynchronous Executors (Background Tasks)</summary>
+
+- **Objective:** Irremediably prevent the premature death of time-consuming processes independent of the client request (Email Delivery, Indexing).
+- **Specifications (do not interpret):**
+  - **Step 1 (`server.rs`):** Formally initialize a Singleton Orchestrator based on an MPSC channel at server startup. This supervisor will host all asynchronous task descriptors outside the TCP acceptance loop.
+  - **Step 2 (`core.rs`):** Declare the submission macro `DeferredTask::spawn(...)`, forcing the developer to decouple from the HTTP `RequestContext` and granting a brand new dedicated transactional lifecycle heavily relying on a "Fire and Forget" topology.
+- **Acceptance Criteria:** Correct scheduling and proven execution of a 5-second task despite the response of the original HTTP request having been successfully returned and the TCP stream closed in less than 10ms.
+
+</details>
+
+<details>
+<summary>[ ] 5.5. Pedagogical Harness (SuperTest Mocking API)</summary>
+
+- **Objective:** Grant the developer the power to logically validate the entire AppRouter via standard Cargo tests atomically and disconnectedly (Without TCP Socket).
+- **Specifications (do not interpret):**
+  - **Step 1 (`lightx::test`):** Design a matricial API Builder (inspired by the JS/TS `SuperTest` concept) allowing the physical usurpation of a `hyper::Request<Incoming>` structure in RAM.
+  - **Step 2 (`core_generator.rs`):** Formally compel the generated AppRouter (implementing `tower::Service`) to expose the `tower::ServiceExt::oneshot` trait. This will guarantee the call of an HTTP mock electrically without Listen Port allocation.
+- **Acceptance Criteria:** Business developers, via `cargo test`, virtually manipulate headers, JWT tokens, and JSON frames without ever having to depend on `tokio::net::TcpListener`.
+
+</details>

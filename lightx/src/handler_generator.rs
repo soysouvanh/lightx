@@ -5,6 +5,8 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 pub struct HandlerConfig {
+    #[serde(rename = "type", default)]
+    pub handler_type: Option<String>,
     #[serde(default)]
     pub parameters: HashMap<String, String>,
     #[serde(default)]
@@ -558,60 +560,169 @@ impl HandlerGenerator {
                 code.push_str("        }\n\n");
             }
 
-            if has_params {
-                // The handler immediately calls check_parameters and retains the typed payload
-                code.push_str("        let payload = Self::check_parameters(ctx)?;\n\n");
-            }
-
-            code.push_str("        // ==========================================\n");
-            code.push_str("        // ETAPE 1 : PIPELINE DE VALIDATION (Fail-Fast)\n");
-            code.push_str("        // ==========================================\n");
-            for validation in pipeline.validations {
-                if has_params {
-                    code.push_str(&format!(
-                        "        crate::bo::{}(ctx, &payload).await?;\n",
-                        validation
-                    ));
-                } else {
-                    code.push_str(&format!("        crate::bo::{}(ctx).await?;\n", validation));
-                }
-            }
-
-            code.push_str("\n        // ==========================================\n");
-            code.push_str("        // ETAPE 2 : PIPELINE DE TRAITEMENT (Transactionnel)\n");
-            code.push_str("        // ==========================================\n");
+            let is_ws = config.handler_type.as_deref() == Some("websocket");
+            let is_html = config.handler_type.as_deref() == Some("html");
             let p_len = pipeline.processings.len();
-            for (i, processing) in pipeline.processings.into_iter().enumerate() {
-                let is_last = i == p_len - 1;
-                let var_bind = if is_last { "let resp = " } else { "" };
+
+            if is_ws {
+                code.push_str("        if ctx.raw_req.is_none() {\n");
+                code.push_str("            return Ok(lightx::ext::hyper::Response::builder().status(426).header(\"Upgrade\", \"websocket\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(\"Upgrade Required\"))).unwrap());\n");
+                code.push_str("        }\n");
+                code.push_str("        let mut req = ctx.raw_req.take().unwrap();\n");
+                code.push_str("        *req.headers_mut() = std::mem::take(&mut ctx.headers);\n");
+                code.push_str("        let (response, websocket) = lightx::ext::hyper_tungstenite::upgrade(&mut req, None).map_err(|e| lightx::core::AppError::SystemError { msg: e.to_string(), file: file!(), line: line!() })?;\n");
+                code.push_str("        lightx::ext::tokio::spawn(async move {\n");
+                code.push_str("            use lightx::ext::futures_util::StreamExt;\n");
+                code.push_str("            use lightx::ext::futures_util::SinkExt;\n");
+                code.push_str("            if let Ok(mut ws) = websocket.await {\n");
+                code.push_str("                while let Some(msg_res) = ws.next().await {\n");
+                code.push_str("                    if let Ok(m) = msg_res {\n");
+                code.push_str("                        if m.is_close() { break; }\n");
+                code.push_str("                        if m.is_text() || m.is_binary() {\n");
+                code.push_str("                            if let Ok(mut ws_ctx) = crate::RequestContext::new_sandbox_context().await {\n");
+                code.push_str("                                ws_ctx.raw_body = lightx::ext::bytes::Bytes::from(m.into_data());\n");
                 if has_params {
-                    code.push_str(&format!(
-                        "        {}crate::bo::{}(ctx, &payload).await?;\n",
-                        var_bind, processing
-                    ));
+                    code.push_str("                                if let Ok(payload) = Self::check_parameters(&ws_ctx) {\n");
+                    code.push_str("                                    let mut success = true;\n");
+                    for validation in &pipeline.validations {
+                        code.push_str(&format!("                                    if crate::bo::{}(&mut ws_ctx, &payload).await.is_err() {{ success = false; }}\n", validation));
+                    }
+                    code.push_str("                                    if success {\n");
+                    let p_len = pipeline.processings.len();
+                    for (i, processing) in pipeline.processings.iter().enumerate() {
+                        let is_last = i == p_len - 1;
+                        if is_last {
+                            code.push_str(&format!("                                        match crate::bo::{}(&mut ws_ctx, &payload).await {{\n", processing));
+                            code.push_str(
+                                "                                            Ok(resp) => {\n",
+                            );
+                            code.push_str("                                                use lightx::ext::http_body_util::BodyExt;\n");
+                            code.push_str("                                                let (_, body) = resp.into_parts();\n");
+                            code.push_str("                                                if let Ok(bytes) = body.collect().await {\n");
+                            code.push_str("                                                    if let Ok(text) = String::from_utf8(bytes.to_bytes().to_vec()) {\n");
+                            code.push_str("                                                        let _ = ws.send(lightx::ext::hyper_tungstenite::tungstenite::Message::Text(text.into())).await;\n");
+                            code.push_str(
+                                "                                                    }\n",
+                            );
+                            code.push_str("                                                }\n");
+                            code.push_str("                                            }\n");
+                            code.push_str("                                            Err(_) => { success = false; }\n");
+                            code.push_str("                                        }\n");
+                        } else {
+                            code.push_str(&format!("                                        if crate::bo::{}(&mut ws_ctx, &payload).await.is_err() {{ success = false; }}\n", processing));
+                        }
+                    }
+                    code.push_str("                                    }\n");
                 } else {
-                    code.push_str(&format!(
-                        "        {}crate::bo::{}(ctx).await?;\n",
-                        var_bind, processing
-                    ));
+                    code.push_str("                                    let mut success = true;\n");
+                    for validation in &pipeline.validations {
+                        code.push_str(&format!("                                    if crate::bo::{}(&mut ws_ctx).await.is_err() {{ success = false; }}\n", validation));
+                    }
+                    code.push_str("                                    if success {\n");
+                    let p_len = pipeline.processings.len();
+                    for (i, processing) in pipeline.processings.iter().enumerate() {
+                        let is_last = i == p_len - 1;
+                        if is_last {
+                            code.push_str(&format!("                                        match crate::bo::{}(&mut ws_ctx).await {{\n", processing));
+                            code.push_str(
+                                "                                            Ok(resp) => {\n",
+                            );
+                            code.push_str("                                                use lightx::ext::http_body_util::BodyExt;\n");
+                            code.push_str("                                                let (_, body) = resp.into_parts();\n");
+                            code.push_str("                                                if let Ok(bytes) = body.collect().await {\n");
+                            code.push_str("                                                    if let Ok(text) = String::from_utf8(bytes.to_bytes().to_vec()) {\n");
+                            code.push_str("                                                        let _ = ws.send(lightx::ext::hyper_tungstenite::tungstenite::Message::Text(text.into())).await;\n");
+                            code.push_str(
+                                "                                                    }\n",
+                            );
+                            code.push_str("                                                }\n");
+                            code.push_str("                                            }\n");
+                            code.push_str("                                            Err(_) => { success = false; }\n");
+                            code.push_str("                                        }\n");
+                        } else {
+                            code.push_str(&format!("                                        if crate::bo::{}(&mut ws_ctx).await.is_err() {{ success = false; }}\n", processing));
+                        }
+                    }
+                    code.push_str("                                    }\n");
                 }
-            }
+                code.push_str("                                    if success { let _ = ws_ctx.commit_all_sandbox_tx().await; }\n");
+                if has_params {
+                    code.push_str("                                }\n");
+                }
+                code.push_str("                            }\n");
+                code.push_str("                        }\n");
+                code.push_str("                    }\n");
+                code.push_str("                }\n");
+                code.push_str("            }\n");
+                code.push_str("        });\n");
+                code.push_str("        Ok(response)\n");
+            } else {
+                if has_params {
+                    // The handler immediately calls check_parameters and retains the typed payload
+                    code.push_str("        let payload = Self::check_parameters(ctx)?;\n\n");
+                }
 
-            if p_len == 0 {
-                code.push_str("        let resp = lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"application/json\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(\"{\\\"status\\\":\\\"success\\\"}\"))).unwrap();\n");
-            }
+                code.push_str("        // ==========================================\n");
+                code.push_str("        // ETAPE 1 : PIPELINE DE VALIDATION (Fail-Fast)\n");
+                code.push_str("        // ==========================================\n");
+                for validation in &pipeline.validations {
+                    if has_params {
+                        code.push_str(&format!(
+                            "        crate::bo::{}(ctx, &payload).await?;\n",
+                            validation
+                        ));
+                    } else {
+                        code.push_str(&format!("        crate::bo::{}(ctx).await?;\n", validation));
+                    }
+                }
 
-            if let Some(ttl) = config.cache {
-                code.push_str("        // CACHE RADICAL: Storage\n");
-                code.push_str("        let (parts, body) = resp.into_parts();\n");
-                code.push_str("        use lightx::ext::http_body_util::BodyExt;\n");
-                code.push_str("        let bytes_body = body.collect().await.map_err(|e| lightx::core::AppError::SystemError { msg: e.to_string(), file: file!(), line: line!() })?.to_bytes();\n");
-                code.push_str(&format!("        let expiry = std::time::Instant::now() + std::time::Duration::from_secs({});\n", ttl));
-                code.push_str("        ctx.response_cache.insert(cache_key, (parts.status, parts.headers.clone(), bytes_body.clone(), expiry));\n");
-                code.push_str("        let resp = lightx::ext::hyper::Response::from_parts(parts, lightx::ext::http_body_util::Full::new(bytes_body));\n");
-            }
+                code.push_str("\n        // ==========================================\n");
+                code.push_str("        // ETAPE 2 : PIPELINE DE TRAITEMENT (Transactionnel)\n");
+                code.push_str("        // ==========================================\n");
 
-            code.push_str("\n        Ok(resp)\n");
+                for (i, processing) in pipeline.processings.iter().enumerate() {
+                    let is_last = i == p_len - 1;
+                    let var_bind = if is_last {
+                        if is_html { "let dto = " } else { "let resp = " }
+                    } else {
+                        ""
+                    };
+                    if has_params {
+                        code.push_str(&format!(
+                            "        {}crate::bo::{}(ctx, &payload).await?;\n",
+                            var_bind, processing
+                        ));
+                    } else {
+                        code.push_str(&format!(
+                            "        {}crate::bo::{}(ctx).await?;\n",
+                            var_bind, processing
+                        ));
+                    }
+                }
+
+                if p_len == 0 {
+                    if is_html {
+                        code.push_str("        let resp = lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"text/html; charset=utf-8\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(\"\"))).unwrap();\n");
+                    } else {
+                        code.push_str("        let resp = lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"application/json\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(\"{\\\"status\\\":\\\"success\\\"}\"))).unwrap();\n");
+                    }
+                } else if is_html {
+                    code.push_str("        let html_content = dto.render();\n");
+                    code.push_str("        let resp = lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"text/html; charset=utf-8\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(html_content))).unwrap();\n");
+                }
+
+                if let Some(ttl) = config.cache {
+                    code.push_str("        // CACHE RADICAL: Storage\n");
+                    code.push_str("        let (parts, body) = resp.into_parts();\n");
+                    code.push_str("        use lightx::ext::http_body_util::BodyExt;\n");
+                    code.push_str("        let bytes_body = body.collect().await.map_err(|e| lightx::core::AppError::SystemError { msg: e.to_string(), file: file!(), line: line!() })?.to_bytes();\n");
+                    code.push_str(&format!("        let expiry = std::time::Instant::now() + std::time::Duration::from_secs({});\n", ttl));
+                    code.push_str("        ctx.response_cache.insert(cache_key, (parts.status, parts.headers.clone(), bytes_body.clone(), expiry));\n");
+                    code.push_str("        let resp = lightx::ext::hyper::Response::from_parts(parts, lightx::ext::http_body_util::Full::new(bytes_body));\n");
+                }
+
+                code.push_str("\n        Ok(resp)\n");
+            }
             code.push_str("    }\n");
             code.push_str("}\n\n");
             let mut segments = Vec::new();

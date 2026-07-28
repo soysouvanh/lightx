@@ -29,8 +29,10 @@ pub mod server;
 /// Only production-necessary crates are exposed.
 pub mod ext {
     pub use bytes;
+    pub use futures_util;
     pub use http_body_util;
     pub use hyper;
+    pub use hyper_tungstenite;
     pub use hyper_util;
     pub use jsonwebtoken;
     pub use matchit;
@@ -41,7 +43,9 @@ pub mod ext {
     pub use rustls;
     pub use rustls_pemfile;
     pub use serde_json;
+    pub use tokio;
     pub use tokio_rustls;
+    pub use tokio_tungstenite;
     pub use tracing;
     pub use tracing_opentelemetry;
 }
