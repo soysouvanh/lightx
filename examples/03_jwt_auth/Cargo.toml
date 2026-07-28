@@ -19,7 +19,7 @@ dotenvy = "0.15"
 lightx = { path = "../../lightx" }
 dotenvy = "0.15"
 tokio = { version = "1.37.0", features = ["full"] }
-daox = { version = "0.1.0", path = "../../../daox-workspace/daox" }
+daox = { version = "0.2.0", path = "../../../daox-workspace/daox" }
 
 [dev-dependencies]
 lightx-macro = { path = "../../lightx-macro" }

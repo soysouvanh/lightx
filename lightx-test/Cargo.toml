@@ -28,4 +28,4 @@ dotenvy = "0.15"
 lightx = { path = "../lightx" }
 dotenvy = "0.15"
 tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "macros"] }
-daox = { version = "0.1.0", path = "../../daox-workspace/daox" }
+daox = { version = "0.2.0", path = "../../daox-workspace/daox" }

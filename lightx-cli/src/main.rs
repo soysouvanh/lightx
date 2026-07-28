@@ -76,8 +76,8 @@ fn scaffold_new_project(project_name: &str) {
 
 [package]
 name = "{}"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 
 [dependencies]
 lightx = {{ path = "../lightx" }}
