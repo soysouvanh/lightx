@@ -4,7 +4,10 @@ version.workspace = true
 edition.workspace = true
 rust-version = "1.97.1"
 authors.workspace = true
+license.workspace = true
+repository.workspace = true
 description = "Benchmarking LightX vs Axum vs Salvo"
+publish = false
 
 [dependencies]
 lightx = { path = "../lightx" }
