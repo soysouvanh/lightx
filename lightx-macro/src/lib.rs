@@ -4,8 +4,6 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{ItemFn, parse_macro_input};
 
-const _CHANGELOG_VALIDATION: &str = include_str!("../../lightx/CHANGELOG.md");
-
 #[proc_macro_attribute]
 pub fn test(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
@@ -24,16 +22,18 @@ pub fn test(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     for input in &input_fn.sig.inputs {
         if let syn::FnArg::Typed(pat_type) = input
-            && let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
-                ctx_ident = pat_ident.ident.clone();
-                has_context = true;
-                if let syn::Type::Reference(type_ref) = &*pat_type.ty
-                    && let syn::Type::Path(type_path) = &*type_ref.elem {
-                        let path = &type_path.path;
-                        ctx_path = quote::quote! { #path };
-                    }
-                break;
+            && let syn::Pat::Ident(pat_ident) = &*pat_type.pat
+        {
+            ctx_ident = pat_ident.ident.clone();
+            has_context = true;
+            if let syn::Type::Reference(type_ref) = &*pat_type.ty
+                && let syn::Type::Path(type_path) = &*type_ref.elem
+            {
+                let path = &type_path.path;
+                ctx_path = quote::quote! { #path };
             }
+            break;
+        }
     }
 
     let vis = &input_fn.vis;
