@@ -6,6 +6,7 @@ authors.workspace = true
 description = "LightX Framework Automation CLI."
 license.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 clap = { version = "4.6.4", features = ["derive"] }
