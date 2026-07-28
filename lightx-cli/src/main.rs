@@ -2,8 +2,6 @@ use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::Path;
 
-const _CHANGELOG_VALIDATION: &str = include_str!("../../lightx/CHANGELOG.md");
-
 #[derive(Parser)]
 #[command(
     name = "lightx",
