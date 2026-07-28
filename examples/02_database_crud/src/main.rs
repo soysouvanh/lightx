@@ -15,7 +15,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let factory = std::sync::Arc::new(crate::AppContextFactory::new().await?);
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8080));
-    let router = std::sync::Arc::new(crate::AppRouter);
+    let router = std::sync::Arc::new(crate::AppRouter {
+        factory: factory.clone(),
+    });
 
     lightx::server::listen(addr, factory, router).await?;
 

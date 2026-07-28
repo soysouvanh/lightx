@@ -132,6 +132,11 @@ impl HandlerGenerator {
             let content = fs::read_to_string(&path)?;
             let config: HandlerConfig = toml::from_str(&content)?;
 
+            // Prevent AOP generation for static delivery endpoints
+            if config.handler_type.as_deref() == Some("static") {
+                continue;
+            }
+
             let action = rel_path.file_stem().unwrap().to_string_lossy().to_string();
             let parent_path = rel_path.parent().unwrap_or(Path::new(""));
             let bo_opt = if parent_path.as_os_str().is_empty() {
@@ -571,16 +576,24 @@ impl HandlerGenerator {
                 code.push_str("        let mut req = ctx.raw_req.take().unwrap();\n");
                 code.push_str("        *req.headers_mut() = std::mem::take(&mut ctx.headers);\n");
                 code.push_str("        let (response, websocket) = lightx::ext::hyper_tungstenite::upgrade(&mut req, None).map_err(|e| lightx::core::AppError::SystemError { msg: e.to_string(), file: file!(), line: line!() })?;\n");
+                code.push_str("        let mut rx = ctx.global_state.subscribe();\n");
                 code.push_str("        lightx::ext::tokio::spawn(async move {\n");
                 code.push_str("            use lightx::ext::futures_util::StreamExt;\n");
                 code.push_str("            use lightx::ext::futures_util::SinkExt;\n");
                 code.push_str("            if let Ok(mut ws) = websocket.await {\n");
-                code.push_str("                while let Some(msg_res) = ws.next().await {\n");
-                code.push_str("                    if let Ok(m) = msg_res {\n");
-                code.push_str("                        if m.is_close() { break; }\n");
-                code.push_str("                        if m.is_text() || m.is_binary() {\n");
-                code.push_str("                            if let Ok(mut ws_ctx) = crate::RequestContext::new_sandbox_context().await {\n");
-                code.push_str("                                ws_ctx.raw_body = lightx::ext::bytes::Bytes::from(m.into_data());\n");
+                code.push_str("                loop {\n");
+                code.push_str("                    lightx::ext::tokio::select! {\n");
+                code.push_str("                        msg_res = ws.next() => {\n");
+                code.push_str(
+                    "                            let Some(msg_res) = msg_res else { break; };\n",
+                );
+                code.push_str("                            if let Ok(m) = msg_res {\n");
+                code.push_str("                                if m.is_close() { break; }\n");
+                code.push_str(
+                    "                                if m.is_text() || m.is_binary() {\n",
+                );
+                code.push_str("                                    if let Ok(mut ws_ctx) = ctx.clone_for_sandbox().await {\n");
+                code.push_str("                                        ws_ctx.raw_body = lightx::ext::bytes::Bytes::from(m.into_data());\n");
                 if has_params {
                     code.push_str("                                if let Ok(payload) = Self::check_parameters(&ws_ctx) {\n");
                     code.push_str("                                    let mut success = true;\n");
@@ -652,9 +665,26 @@ impl HandlerGenerator {
                 code.push_str("                            }\n");
                 code.push_str("                        }\n");
                 code.push_str("                    }\n");
+                code.push_str("                },\n");
+                code.push_str("                res = rx.recv() => {\n");
+                code.push_str("                    match res {\n");
+                code.push_str("                        Ok(bytes) => {\n");
+                code.push_str("                            if let Ok(text) = String::from_utf8(bytes.to_vec()) {\n");
+                code.push_str("                                let _ = ws.send(lightx::ext::hyper_tungstenite::tungstenite::Message::Text(text.into())).await;\n");
+                code.push_str("                            }\n");
+                code.push_str("                        }\n");
+                code.push_str("                        Err(lightx::ext::tokio::sync::broadcast::error::RecvError::Closed) => {\n");
+                code.push_str("                            break;\n");
+                code.push_str("                        }\n");
+                code.push_str("                        Err(lightx::ext::tokio::sync::broadcast::error::RecvError::Lagged(_)) => {\n");
+                code.push_str("                            // Client is too slow to read broadcast messages, skipping missed messages\n");
+                code.push_str("                        }\n");
+                code.push_str("                    }\n");
                 code.push_str("                }\n");
-                code.push_str("            }\n");
-                code.push_str("        });\n");
+                code.push_str("            }\n"); // closes select!
+                code.push_str("        }\n"); // closes loop
+                code.push_str("    }\n"); // closes if let Ok(mut ws)
+                code.push_str("});\n"); // closes tokio::spawn
                 code.push_str("        Ok(response)\n");
             } else {
                 if has_params {

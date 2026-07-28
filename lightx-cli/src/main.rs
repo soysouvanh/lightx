@@ -125,10 +125,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "mysql://root:root@127.0.0.1:3306/my_database".to_string());
     let pool = MySqlPool::connect(&db_url).await?;
     
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8080));
-    let router = Arc::new(AppRouter);
+    let factory = Arc::new(AppContextFactory::new().await?);
     
-    lightx::server::listen(addr, pool, router).await?;
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], 8080));
+    let router = Arc::new(AppRouter { factory: factory.clone() });
+    
+    lightx::server::listen(addr, factory, router).await?;
     
     Ok(())
 }

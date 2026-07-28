@@ -171,7 +171,7 @@ impl CoreGenerator {
             "///  The global entry point that routes HTTP requests to the correct AOP Pipeline.\n",
         );
         code.push_str("/// Runs in O(1) time complexity with zero allocation.\n");
-        code.push_str("pub async fn route_request(method: &str, uri: &str, ctx: &mut crate::RequestContext) -> Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::Full<lightx::ext::bytes::Bytes>>, lightx::core::AppError> {\n");
+        code.push_str("pub async fn route_request(method: &str, uri: &str, ctx: &mut crate::RequestContext) -> Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, lightx::core::AppError> {\n");
         code.push_str("    use lightx::ext::tracing::Instrument;\n");
         code.push_str("    use lightx::ext::tracing_opentelemetry::OpenTelemetrySpanExt;\n");
         code.push_str("    let span = lightx::ext::tracing::info_span!(\"http_request\", http.method = %method, http.uri = %uri, client.ip = %ctx.client_ip, user.id = lightx::ext::tracing::field::Empty);\n");
@@ -236,15 +236,112 @@ impl CoreGenerator {
                 let rel_path = path.strip_prefix(handlers_path).unwrap();
                 let handler_name = format!("{}Handler", Self::to_pascal_name(rel_path));
 
-                code.push_str(&format!(
-                    "            {} => crate::{}::handle(ctx).await,\n",
-                    current_node, handler_name
-                ));
+                let content = fs::read_to_string(path).unwrap_or_default();
+                let is_static = if let Ok(toml_val) = content.parse::<toml::Value>() {
+                    toml_val.get("type").and_then(|t| t.as_str()) == Some("static")
+                } else {
+                    false
+                };
+
+                if is_static {
+                    let toml_val: toml::Value = content.parse().unwrap();
+                    let dir = toml_val
+                        .get("dir")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("./static");
+                    let absolute_dir =
+                        std::fs::canonicalize(dir).unwrap_or_else(|_| Path::new(dir).to_path_buf());
+
+                    code.push_str(&format!("            {} => {{\n", current_node));
+                    code.push_str("                let file_path = matched.params.get(\"rest\").unwrap_or(\"\");\n");
+                    code.push_str("                match file_path {\n");
+
+                    // Walk directory and pre-compute ETags using SHA256 at Build Time
+                    if absolute_dir.exists() {
+                        let mut stack = vec![absolute_dir.clone()];
+                        while let Some(current_path) = stack.pop() {
+                            if current_path.is_dir() {
+                                if let Ok(entries) = fs::read_dir(&current_path) {
+                                    for entry in entries.filter_map(Result::ok) {
+                                        stack.push(entry.path());
+                                    }
+                                }
+                            } else if current_path.is_file() {
+                                let file_rel_path = current_path
+                                    .strip_prefix(&absolute_dir)
+                                    .unwrap()
+                                    .to_string_lossy()
+                                    .replace("\\", "/");
+
+                                use sha2::Digest;
+                                let mut file = fs::File::open(&current_path).unwrap();
+                                let mut hasher = sha2::Sha256::new();
+                                std::io::copy(&mut file, &mut hasher).unwrap();
+                                let mut hex_hash = String::new();
+                                for b in hasher.finalize() {
+                                    hex_hash.push_str(&format!("{:02x}", b));
+                                }
+                                let etag = format!("\\\"{}\\\"", hex_hash);
+                                let abs_str = current_path.to_string_lossy().replace("\\", "/");
+
+                                code.push_str(&format!(
+                                    "                    \"{}\" => {{\n",
+                                    file_rel_path
+                                ));
+                                code.push_str(&format!(
+                                    "                        let etag = \"{}\";\n",
+                                    etag
+                                ));
+                                code.push_str("                        if let Some(client_etag) = ctx.headers.get(lightx::ext::hyper::header::IF_NONE_MATCH) {\n");
+                                code.push_str("                            if let Ok(client_etag_str) = client_etag.to_str() {\n");
+                                code.push_str("                                if client_etag_str == etag {\n");
+                                code.push_str("                                    return Ok(lightx::ext::hyper::Response::builder().status(304).body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Empty::new(), |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap());\n");
+                                code.push_str("                                }\n");
+                                code.push_str("                            }\n");
+                                code.push_str("                        }\n");
+
+                                code.push_str(&format!("                        let file = lightx::ext::tokio::fs::File::open(\"{}\").await.map_err(|_| lightx::core::AppError::RouteNotFound)?;\n", abs_str));
+                                code.push_str("                        let stream = lightx::ext::tokio_util::io::ReaderStream::new(file);\n");
+                                code.push_str("                        use lightx::ext::futures_util::StreamExt;\n");
+                                code.push_str("                        let mapped_stream = stream.map(|res| res.map(lightx::ext::hyper::body::Frame::data));\n");
+                                code.push_str("                        let body = lightx::ext::http_body_util::StreamBody::new(mapped_stream);\n");
+                                code.push_str("                        let boxed_body = lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(body, |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>));\n");
+
+                                // Determine mime type roughly for pedagogical success
+                                let mime = if file_rel_path.ends_with(".html") {
+                                    "text/html"
+                                } else if file_rel_path.ends_with(".css") {
+                                    "text/css"
+                                } else if file_rel_path.ends_with(".js") {
+                                    "application/javascript"
+                                } else if file_rel_path.ends_with(".svg") {
+                                    "image/svg+xml"
+                                } else {
+                                    "application/octet-stream"
+                                };
+
+                                code.push_str(&format!("                        Ok(lightx::ext::hyper::Response::builder().status(200).header(lightx::ext::hyper::header::CONTENT_TYPE, \"{}\").header(lightx::ext::hyper::header::ETAG, etag).header(lightx::ext::hyper::header::CACHE_CONTROL, \"public, max-age=0, must-revalidate\").body(boxed_body).unwrap())\n", mime));
+                                code.push_str("                    },\n");
+                            }
+                        }
+                    }
+
+                    code.push_str(
+                        "                    _ => Err(lightx::core::AppError::RouteNotFound),\n",
+                    );
+                    code.push_str("                }\n");
+                    code.push_str("            },\n");
+                } else {
+                    code.push_str(&format!(
+                        "            {} => crate::{}::handle(ctx).await.map(|resp| resp.map(|b| lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(b, |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)))),\n",
+                        current_node, handler_name
+                    ));
+                }
             }
         }
 
         code.push_str(&format!("            {} => {{\n", swagger_id));
-        code.push_str("                Ok(lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"application/json\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(include_str!(concat!(env!(\"OUT_DIR\"), \"/openapi.json\"))))).unwrap())\n");
+        code.push_str("                Ok(lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"application/json\").body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(include_str!(concat!(env!(\"OUT_DIR\"), \"/openapi.json\")))), |e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap())\n");
         code.push_str("            },\n");
         code.push_str("            _ => Err(lightx::core::AppError::RouteNotFound),\n");
         code.push_str("        }\n");
@@ -254,7 +351,7 @@ impl CoreGenerator {
         code.push_str("    }.instrument(span).await\n");
         code.push_str("}\n\n");
 
-        code.push_str("pub struct AppRouter;\n");
+        code.push_str("#[derive(Clone)]\npub struct AppRouter {\n    pub factory: std::sync::Arc<crate::AppContextFactory>,\n}\n");
         code.push_str("impl lightx::server::Router for AppRouter {\n");
         code.push_str("    type Context = crate::RequestContext;\n");
         code.push_str("    fn route<'a>(\n");
@@ -262,8 +359,36 @@ impl CoreGenerator {
         code.push_str("        method: &'a str,\n");
         code.push_str("        uri: &'a str,\n");
         code.push_str("        ctx: &'a mut Self::Context,\n");
-        code.push_str("    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::Full<lightx::ext::bytes::Bytes>>, lightx::core::AppError>> + Send + 'a>> {\n");
+        code.push_str("    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, lightx::core::AppError>> + Send + 'a>> {\n");
         code.push_str("        Box::pin(route_request(method, uri, ctx))\n");
+        code.push_str("    }\n");
+        code.push_str("}\n\n");
+
+        // SUPERTEST MOCKING API
+        code.push_str("impl lightx::ext::tower::Service<lightx::ext::hyper::Request<String>> for AppRouter {\n");
+        code.push_str("    type Response = lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>;\n");
+        code.push_str("    type Error = std::convert::Infallible;\n");
+        code.push_str("    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;\n");
+        code.push_str("    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {\n");
+        code.push_str("        std::task::Poll::Ready(Ok(()))\n");
+        code.push_str("    }\n");
+        code.push_str(
+            "    fn call(&mut self, req: lightx::ext::hyper::Request<String>) -> Self::Future {\n",
+        );
+        code.push_str("        use lightx::server::{Router, ContextFactory};\n");
+        code.push_str("        let factory = self.factory.clone();\n");
+        code.push_str("        let router = std::sync::Arc::new(self.clone());\n");
+        code.push_str("        Box::pin(async move {\n");
+        code.push_str("            let (parts, body) = req.into_parts();\n");
+        code.push_str("            let raw_bytes = lightx::ext::bytes::Bytes::from(body);\n");
+        code.push_str("            let peer_ip = \"127.0.0.1\".parse().unwrap();\n");
+        code.push_str("            let mut ctx = factory.create_context(peer_ip, parts.headers.clone(), raw_bytes, None);\n");
+        code.push_str("            let response = match router.route(parts.method.as_str(), parts.uri.path(), &mut ctx).await {\n");
+        code.push_str("                Ok(resp) => { let _ = factory.commit_context(&mut ctx).await; resp },\n");
+        code.push_str("                Err(e) => lightx::ext::hyper::Response::builder().status(500).body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(format!(r#\"{{\"error\":\"Mock Route Error: {}\"}}\"#, e))), |ei| Box::new(ei) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap(),\n");
+        code.push_str("            };\n");
+        code.push_str("            Ok(response)\n");
+        code.push_str("        })\n");
         code.push_str("    }\n");
         code.push_str("}\n");
 

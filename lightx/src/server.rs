@@ -4,7 +4,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use http_body_util::{BodyExt, Full, Limited};
+use http_body_util::{BodyExt, Full, Limited, combinators::BoxBody};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 
@@ -35,10 +35,9 @@ const CONNECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5
 /// ```
 /// use lightx::server::Router;
 /// use lightx::core::AppError;
-/// use std::future::Future;
 /// use std::pin::Pin;
 /// use bytes::Bytes;
-/// use http_body_util::Full;
+/// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
 /// struct MockRouter;
@@ -49,9 +48,9 @@ const CONNECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5
 ///         method: &'a str,
 ///         uri: &'a str,
 ///         ctx: &'a mut Self::Context,
-///     ) -> Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, AppError>> + Send + 'a>> {
+///     ) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
 ///         Box::pin(async {
-///             Ok(Response::new(Full::new(Bytes::from(r#"{"status":"mocked"}"#))))
+///             Ok(Response::new(Full::new(Bytes::from(r#"{"status":"mocked"}"#)).map_err(|e| match e {}).boxed()))
 ///         })
 ///     }
 /// }
@@ -71,6 +70,10 @@ pub trait ContextFactory: Send + Sync + 'static {
         &'a self,
         ctx: &'a mut Self::Context,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
+
+    /// Returns `true` if the IP address is banned from accessing the hyper pipeline.
+    /// Defends the architecture before ANY memory allocation.
+    fn is_ip_blocked(&self, client_ip: &std::net::IpAddr) -> bool;
 }
 
 pub trait Router: Send + Sync + 'static {
@@ -81,7 +84,19 @@ pub trait Router: Send + Sync + 'static {
         method: &'a str,
         uri: &'a str,
         ctx: &'a mut Self::Context,
-    ) -> Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, AppError>> + Send + 'a>>;
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        Response<
+                            BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>,
+                        >,
+                        AppError,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    >;
 }
 
 async fn handle_request<C: Send + 'static>(
@@ -89,7 +104,16 @@ async fn handle_request<C: Send + 'static>(
     factory: Arc<dyn ContextFactory<Context = C>>,
     router: Arc<dyn Router<Context = C>>,
     peer_addr: std::net::IpAddr,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, Infallible>
+{
+    // 0. DDOS IP Blocklist Filter Layer
+    // Rejects illegitimate IPs unconditionally in O(1) based on dynamically applied firewall rules.
+    if factory.is_ip_blocked(&peer_addr) {
+        return Ok(build_response(
+            StatusCode::FORBIDDEN,
+            "{\"code\":403,\"error\":\"IP Blocked by Firewall\"}",
+        ));
+    }
     let is_ws = {
         let has_upgrade = req
             .headers()
@@ -186,18 +210,6 @@ async fn handle_request<C: Send + 'static>(
                     hyper::header::HeaderValue::from_static("application/json"),
                 );
             }
-            headers.insert(
-                "Strict-Transport-Security",
-                hyper::header::HeaderValue::from_static("max-age=63072000"),
-            );
-            headers.insert(
-                "X-Content-Type-Options",
-                hyper::header::HeaderValue::from_static("nosniff"),
-            );
-            headers.insert(
-                "X-Frame-Options",
-                hyper::header::HeaderValue::from_static("DENY"),
-            );
 
             raw_resp
         }
@@ -261,14 +273,14 @@ async fn handle_request<C: Send + 'static>(
 /// use std::future::Future;
 /// use std::pin::Pin;
 /// use bytes::Bytes;
-/// use http_body_util::Full;
+/// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
 /// struct DummyRouter;
 /// impl Router for DummyRouter {
 ///     type Context = ();
-///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, AppError>> + Send + 'a>> {
-///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()))) })
+///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
+///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
@@ -279,6 +291,7 @@ async fn handle_request<C: Send + 'static>(
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
+///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// async fn init_server() {
@@ -288,15 +301,31 @@ async fn handle_request<C: Send + 'static>(
 ///     let service = build_tower_service(factory, router, ip);
 /// }
 /// ```
+#[allow(clippy::type_complexity)]
 pub fn build_tower_service<C: Send + 'static>(
     factory: Arc<dyn ContextFactory<Context = C>>,
     router: Arc<dyn Router<Context = C>>,
     peer_addr: std::net::IpAddr,
 ) -> impl tower::Service<
     Request<Incoming>,
-    Response = Response<Full<Bytes>>,
+    Response = Response<
+        impl hyper::body::Body<Data = Bytes, Error = Box<dyn std::error::Error + Send + Sync + 'static>>
+        + Send
+        + 'static,
+    >,
     Error = Infallible,
-    Future = impl Future<Output = Result<Response<Full<Bytes>>, Infallible>> + Send,
+    Future = impl Future<
+        Output = Result<
+            Response<
+                impl hyper::body::Body<
+                    Data = Bytes,
+                    Error = Box<dyn std::error::Error + Send + Sync + 'static>,
+                > + Send
+                + 'static,
+            >,
+            Infallible,
+        >,
+    > + Send,
 > + Clone {
     let svc = tower::service_fn(move |req: Request<Incoming>| {
         let factory = factory.clone();
@@ -307,6 +336,21 @@ pub fn build_tower_service<C: Send + 'static>(
 
     tower::ServiceBuilder::new()
         // Seamless composability with tower-http ecosystem (CORS, TraceLayer, etc.) is now native.
+        .layer(tower_http::cors::CorsLayer::permissive())
+        .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(
+            hyper::header::STRICT_TRANSPORT_SECURITY,
+            hyper::header::HeaderValue::from_static("max-age=63072000"),
+        ))
+        .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(
+            hyper::header::X_CONTENT_TYPE_OPTIONS,
+            hyper::header::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(tower_http::set_header::SetResponseHeaderLayer::overriding(
+            hyper::header::HeaderName::from_static("x-frame-options"),
+            hyper::header::HeaderValue::from_static("DENY"),
+        ))
+        .layer(tower_http::compression::CompressionLayer::new())
+        .layer(tower_http::decompression::DecompressionLayer::new())
         .service(svc)
 }
 
@@ -314,35 +358,49 @@ pub fn build_tower_service<C: Send + 'static>(
 fn inject_security_headers(
     builder: hyper::http::response::Builder,
 ) -> hyper::http::response::Builder {
-    builder
-        .header("Content-Type", "application/json")
-        .header("Strict-Transport-Security", "max-age=63072000")
-        .header("X-Content-Type-Options", "nosniff")
-        .header("X-Frame-Options", "DENY")
+    builder.header("Content-Type", "application/json")
 }
 
-fn build_response(status: StatusCode, body: &str) -> Response<Full<Bytes>> {
+fn build_response(
+    status: StatusCode,
+    body: &str,
+) -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>> {
     inject_security_headers(Response::builder().status(status))
-        .body(Full::new(Bytes::from(body.to_owned())))
-        .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("{\"error\":\"Fatal\"}"))))
+        .body(
+            Full::new(Bytes::from(body.to_owned()))
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)
+                .boxed(),
+        )
+        .unwrap_or_else(|_| {
+            Response::new(
+                Full::new(Bytes::from("{\"error\":\"Fatal\"}"))
+                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync + 'static>)
+                    .boxed(),
+            )
+        })
 }
 
-fn bad_request(body: &str) -> Response<Full<Bytes>> {
+fn bad_request(
+    body: &str,
+) -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>> {
     build_response(StatusCode::BAD_REQUEST, body)
 }
 
-fn payload_too_large() -> Response<Full<Bytes>> {
+fn payload_too_large()
+-> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>> {
     build_response(
         StatusCode::PAYLOAD_TOO_LARGE,
         "{\"code\":413,\"error\":\"Payload Too Large\"}",
     )
 }
 
-fn internal_error(body: &str) -> Response<Full<Bytes>> {
+fn internal_error(
+    body: &str,
+) -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>> {
     build_response(StatusCode::INTERNAL_SERVER_ERROR, body)
 }
 
-fn not_found() -> Response<Full<Bytes>> {
+fn not_found() -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>> {
     build_response(
         StatusCode::NOT_FOUND,
         "{\"code\":404,\"error\":\"Not Found\"}",
@@ -360,14 +418,14 @@ fn not_found() -> Response<Full<Bytes>> {
 /// use std::future::Future;
 /// use std::pin::Pin;
 /// use bytes::Bytes;
-/// use http_body_util::Full;
+/// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
 /// struct DummyRouter;
 /// impl Router for DummyRouter {
 ///     type Context = ();
-///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, AppError>> + Send + 'a>> {
-///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()))) })
+///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
+///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
@@ -378,6 +436,7 @@ fn not_found() -> Response<Full<Bytes>> {
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
+///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// #[tokio::main]
@@ -385,11 +444,46 @@ fn not_found() -> Response<Full<Bytes>> {
 ///     // listen("127.0.0.1:8080".parse().unwrap(), Arc::new(DummyFactory), Arc::new(DummyRouter)).await.unwrap();
 /// }
 /// ```
+type BoxedTask = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+static BACKGROUND_TX: std::sync::OnceLock<tokio::sync::mpsc::Sender<BoxedTask>> =
+    std::sync::OnceLock::new();
+
+/// Returns the globally active Background Task transmitter.
+pub fn get_background_tx() -> tokio::sync::mpsc::Sender<BoxedTask> {
+    BACKGROUND_TX
+        .get()
+        .cloned()
+        .expect("CRITICAL: Background Orchestrator not initialized.")
+}
+
+/// Initializes the MPSC Background Task Orchestrator.
+/// This supervisor formally detaches operations from the TCP request lifecycle,
+/// guaranteeing "Fire and Forget" transactional integrity for time-consuming executions.
+/// Uses a strictly bounded capacity (10_000) to prevent OOM DOS vectors unconditionally.
+pub fn init_background_orchestrator() {
+    if BACKGROUND_TX.get().is_some() {
+        return;
+    }
+    // Strict bounding to 10,000 tasks max. Protects completely against Memory Exhaustion DOS.
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<BoxedTask>(10_000);
+    BACKGROUND_TX
+        .set(tx)
+        .expect("Failed to initialize Background Orchestrator");
+
+    tokio::task::spawn(async move {
+        // The invincible supervisor loop out of the Hyper request boundary
+        while let Some(task) = rx.recv().await {
+            tokio::task::spawn(task);
+        }
+    });
+}
+
 pub async fn listen<C: Send + 'static>(
     addr: std::net::SocketAddr,
     factory: Arc<dyn ContextFactory<Context = C>>,
     router: Arc<dyn Router<Context = C>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    init_background_orchestrator();
     let listener = TcpListener::bind(addr).await?;
     println!(" LightX Server listening on http://{}", addr);
 
@@ -428,14 +522,14 @@ pub async fn listen<C: Send + 'static>(
 /// use std::future::Future;
 /// use std::pin::Pin;
 /// use bytes::Bytes;
-/// use http_body_util::Full;
+/// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
 /// struct DummyRouter;
 /// impl Router for DummyRouter {
 ///     type Context = ();
-///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, AppError>> + Send + 'a>> {
-///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()))) })
+///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
+///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
@@ -446,6 +540,7 @@ pub async fn listen<C: Send + 'static>(
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
+///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// #[tokio::main]
@@ -460,6 +555,7 @@ pub async fn listen_tls<C: Send + 'static>(
     cert_path: &str,
     key_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    init_background_orchestrator();
     // 1. Read the public certificate (no .expect(), proper error propagation)
     let cert_file = File::open(cert_path).map_err(|e| {
         format!(

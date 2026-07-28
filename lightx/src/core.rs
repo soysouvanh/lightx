@@ -301,3 +301,24 @@ pub async fn verify_jwt(token: &str) -> Result<String, AppError> {
         }),
     }
 }
+
+/// Disconnects a Future from the HTTP RequestContext and TCP lifecycle.
+/// The Future is sent through an MPSC channel to a Singleton Orchestrator
+/// that runs outside the hyper acceptance loop, guaranteeing absolute "Fire and Forget".
+pub struct DeferredTask;
+impl DeferredTask {
+    /// Spawns a background task.
+    /// This requires the server to have been started via `lightx::server::listen` or `init_background_orchestrator`.
+    pub fn spawn<F>(fut: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let tx = crate::server::get_background_tx();
+        if let Err(e) = tx.try_send(Box::pin(fut)) {
+            eprintln!(
+                "CRITICAL: DeferredTask Failed to reach Orchestrator (OOM DOS Prevention): {}",
+                e
+            );
+        }
+    }
+}

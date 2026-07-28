@@ -303,56 +303,56 @@ Here is the mapping of the remaining strategic workstreams to achieve this visio
 ## Phase 5: Industrial Ecosystem & Architectural Security
 
 <details>
-<summary>[ ] 5.1. Shared State & Telecasting (Pub/Sub WebSocket)</summary>
+<summary>[x] 5.1. Shared State & Telecasting (Pub/Sub WebSocket)</summary>
 
 - **Objective:** Elevate the WebSocket layer from a simple asynchronous "Request-Response" mode to a server event architecture allowing multichannel Push.
 - **Specifications (do not interpret):**
-  - **Step 1 (`core.rs` & `server.rs`):** Statically inject a type-safe `GlobalState` within the `AppContextFactory`, powered by an MPMC channel (`tokio::sync::broadcast`) formally prohibiting the use of `std::sync::Mutex` (risk of blocking poison) for the exclusive benefit of limited asynchronous Mutexes or atomic structures.
-  - **Step 2 (`handler_generator.rs`):** Formally transform the sequential `ws.next().await` loop into a multiplexing architecture (via `tokio::select!`). This macro will simultaneously listen to the incoming TCP socket and the `rx` receiver of the MPMC channel, allowing the instantaneous emission of a JSON DTO without suspending client listening.
+  - [x] **Step 1 (`core.rs` & `server.rs`):** Statically inject a type-safe `GlobalState` within the `AppContextFactory`, powered by an MPMC channel (`tokio::sync::broadcast`) formally prohibiting the use of `std::sync::Mutex` (risk of blocking poison) for the exclusive benefit of limited asynchronous Mutexes or atomic structures.
+  - [x] **Step 2 (`handler_generator.rs`):** Formally transform the sequential `ws.next().await` loop into a multiplexing architecture (via `tokio::select!`). This macro will simultaneously listen to the incoming TCP socket and the `rx` receiver of the MPMC channel, allowing the instantaneous emission of a JSON DTO without suspending client listening.
 - **Acceptance Criteria:** Validation via a unit test where a Database mutation by an "HTTP POST" Business Object unconditionally provokes the instant reception of a message across a pool of connected WebSocket clients without any temporal congestion.
 
 </details>
 
 <details>
-<summary>[ ] 5.2. Peripheral Global Shields (Middlewares)</summary>
+<summary>[x] 5.2. Peripheral Global Shields (Middlewares)</summary>
 
 - **Objective:** Protect the pipeline even before URI resolution (Radix Trie) and standardize distribution rules to ensure scalability under massive attacks (Rate-Limiting, DDOS).
 - **Specifications (do not interpret):**
-  - **Step 1 (`server.rs`):** Architect the implementation of the `middlewares.toml` directive by generating a strict native encapsulation layer (`tower::Layer`) encapsulating the Hyper `Service`. This layer will intercept the `Request<Incoming>` _before_ any context allocation (Strict CORS, HSTS Security Headers, IP Blocklist).
-  - **Step 2 (`cargo`):** Enrich the dependency tree with `tower-http` to rigorously implement the `CompressionLayer` and `DecompressionLayer` layers, guaranteeing Content-Encoding (GZIP/Brotli) negotiation via pure stream parsing without soliciting applicative RAM.
+  - [x] **Step 1 (`server.rs`):** Architect the implementation of the `middlewares.toml` directive by generating a strict native encapsulation layer (`tower::Layer`) encapsulating the Hyper `Service`. This layer will intercept the `Request<Incoming>` _before_ any context allocation (Strict CORS, HSTS Security Headers, IP Blocklist).
+  - [x] **Step 2 (`cargo`):** Enrich the dependency tree with `tower-http` to rigorously implement the `CompressionLayer` and `DecompressionLayer` layers, guaranteeing Content-Encoding (GZIP/Brotli) negotiation via pure stream parsing without soliciting applicative RAM.
 - **Acceptance Criteria:** Asynchronous rejection of an illegitimate `wrk` HTTP request under 5 microseconds before it even enters the Radix Trie, securing the facade's DDOS resilience.
 
 </details>
 
 <details>
-<summary>[ ] 5.3. Static Routing & Delivery (Zero-Copy Assets)</summary>
+<summary>[x] 5.3. Static Routing & Delivery (Zero-Copy Assets)</summary>
 
 - **Objective:** Free the application from the systemic need of an external Proxy (Nginx) to massively deliver static files without exhausting Node RAM.
 - **Specifications (do not interpret):**
-  - **Step 1 (`core_generator.rs`):** Add a TOML sub-routing directive `type = "static"` parameterizing a terminal node of the Radix Trie pointing to a native service interfacing a raw stream (`tokio_util::io::ReaderStream`). The objective is to prohibit file RAM loading and force a _Zero-Copy_ Chunking transfer.
-  - **Step 2 (`build.rs`):** Guarantee that invalidation headers (Cache-Control, ETag) will not be subjected to any IO calculation by the Runtime. They must mathematically derive from cryptographic hashes (SHA-256) computed exclusively at generation time (Build Time) by the macro-engine.
+  - [x] **Step 1 (`core_generator.rs`):** Add a TOML sub-routing directive `type = "static"` parameterizing a terminal node of the Radix Trie pointing to a native service interfacing a raw stream (`tokio_util::io::ReaderStream`). The objective is to prohibit file RAM loading and force a _Zero-Copy_ Chunking transfer.
+  - [x] **Step 2 (`build.rs`):** Guarantee that invalidation headers (Cache-Control, ETag) will not be subjected to any IO calculation by the Runtime. They must mathematically derive from cryptographic hashes (SHA-256) computed exclusively at generation time (Build Time) by the macro-engine.
 - **Acceptance Criteria:** The invariable securing of an `A+` rating under a comprehensive Lighthouse performance audit in local conditions, proving the perfect management of ETags and Cache Control.
 
 </details>
 
 <details>
-<summary>[ ] 5.4. Absolute Asynchronous Executors (Background Tasks)</summary>
+<summary>[x] 5.4. Absolute Asynchronous Executors (Background Tasks)</summary>
 
 - **Objective:** Irremediably prevent the premature death of time-consuming processes independent of the client request (Email Delivery, Indexing).
 - **Specifications (do not interpret):**
-  - **Step 1 (`server.rs`):** Formally initialize a Singleton Orchestrator based on an MPSC channel at server startup. This supervisor will host all asynchronous task descriptors outside the TCP acceptance loop.
-  - **Step 2 (`core.rs`):** Declare the submission macro `DeferredTask::spawn(...)`, forcing the developer to decouple from the HTTP `RequestContext` and granting a brand new dedicated transactional lifecycle heavily relying on a "Fire and Forget" topology.
+  - [x] **Step 1 (`server.rs`):** Formally initialize a Singleton Orchestrator based on an MPSC channel at server startup. This supervisor will host all asynchronous task descriptors outside the TCP acceptance loop.
+  - [x] **Step 2 (`core.rs`):** Declare the submission macro `DeferredTask::spawn(...)`, forcing the developer to decouple from the HTTP `RequestContext` and granting a brand new dedicated transactional lifecycle heavily relying on a "Fire and Forget" topology.
 - **Acceptance Criteria:** Correct scheduling and proven execution of a 5-second task despite the response of the original HTTP request having been successfully returned and the TCP stream closed in less than 10ms.
 
 </details>
 
 <details>
-<summary>[ ] 5.5. Pedagogical Harness (SuperTest Mocking API)</summary>
+<summary>[x] 5.5. Pedagogical Harness (SuperTest Mocking API)</summary>
 
 - **Objective:** Grant the developer the power to logically validate the entire AppRouter via standard Cargo tests atomically and disconnectedly (Without TCP Socket).
 - **Specifications (do not interpret):**
-  - **Step 1 (`lightx::test`):** Design a matricial API Builder (inspired by the JS/TS `SuperTest` concept) allowing the physical usurpation of a `hyper::Request<Incoming>` structure in RAM.
-  - **Step 2 (`core_generator.rs`):** Formally compel the generated AppRouter (implementing `tower::Service`) to expose the `tower::ServiceExt::oneshot` trait. This will guarantee the call of an HTTP mock electrically without Listen Port allocation.
+  - [x] **Step 1 (`lightx::test`):** Design a matricial API Builder (inspired by the JS/TS `SuperTest` concept) allowing the physical usurpation of a `hyper::Request<Incoming>` structure in RAM.
+  - [x] **Step 2 (`core_generator.rs`):** Formally compel the generated AppRouter (implementing `tower::Service`) to expose the `tower::ServiceExt::oneshot` trait. This will guarantee the call of an HTTP mock electrically without Listen Port allocation.
 - **Acceptance Criteria:** Business developers, via `cargo test`, virtually manipulate headers, JWT tokens, and JSON frames without ever having to depend on `tokio::net::TcpListener`.
 
 </details>

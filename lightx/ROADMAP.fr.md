@@ -305,53 +305,53 @@ Voici la cartographie des chantiers stratégiques restants pour achever cette vi
 ## Phase 5 : Écosystème Industriel & Sécurité Architecturale
 
 <details>
-<summary>[ ] 5.1. État Partagé et Télédiffusion (Pub/Sub WebSocket)</summary>
+<summary>[x] 5.1. État Partagé et Télédiffusion (Pub/Sub WebSocket)</summary>
 
 - **Objectif :** Élever la couche WebSocket d'un simple mode "Request-Response" asynchrone vers une architecture événementielle serveur autorisant le Push multicanal.
 - **Spécifications (à ne pas interpréter) :**
-  - **Étape 1 (`core.rs` & `server.rs`) :** Injecter statiquement un `GlobalState` type-safe au sein du `AppContextFactory`, motorisé par un canal MPMC (`tokio::sync::broadcast`) interdisant formellement l'usage de `std::sync::Mutex` (risque d'empoisonnement bloquant) au profit exclusif de Mutex asynchrones limités ou de structures atomiques.
-  - **Étape 2 (`handler_generator.rs`) :** Transformer formellement la boucle séquentielle `ws.next().await` en une architecture de multiplexage (via `tokio::select!`). Cette macro écoutera conjointement la socket TCP entrante et le récepteur `rx` du canal MPMC, permettant l'émission instantanée d'un DTO JSON sans suspendre l'écoute cliente.
+  - [x] **Étape 1 (`core.rs` & `server.rs`) :** Injecter statiquement un `GlobalState` type-safe au sein du `AppContextFactory`, motorisé par un canal MPMC (`tokio::sync::broadcast`) interdisant formellement l'usage de `std::sync::Mutex` (risque d'empoisonnement bloquant) au profit exclusif de Mutex asynchrones limités ou de structures atomiques.
+  - [x] **Étape 2 (`handler_generator.rs`) :** Transformer formellement la boucle séquentielle `ws.next().await` en une architecture de multiplexage (via `tokio::select!`). Cette macro écoutera conjointement la socket TCP entrante et le récepteur `rx` du canal MPMC, permettant l'émission instantanée d'un DTO JSON sans suspendre l'écoute cliente.
 - **Critère d'Acceptation :** Validation par un test unitaire où une mutation en Base de Données par un Business Object "HTTP POST" provoque la réception instantanée d'un message sur un pool de clients WebSocket connectés sans aucune congestion temporelle.
 </details>
 
 <details>
-<summary>[ ] 5.2. Boucliers Globaux Périphériques (Middlewares)</summary>
+<summary>[x] 5.2. Boucliers Globaux Périphériques (Middlewares)</summary>
 
 - **Objectif :** Protéger le pipeline avant même la résolution de l'URI (Radix Trie) et unifier les règles de distribution pour garantir la scalabilité sous attaques massives (Rate-Limiting, DDOS).
 - **Spécifications (à ne pas interpréter) :**
-  - **Étape 1 (`server.rs`) :** Architecturer l'implémentation de la directive `middlewares.toml` en générant une couche d'encapsulation native stricte (`tower::Layer`) encapsulant le `Service` Hyper. Cette couche interceptera la `Request<Incoming>` _avant_ toute allocation de contexte (CORS stricts, HSTS Security Headers, IP Blocklist).
-  - **Étape 2 (`cargo`) :** Enchérir l'arbre de dépendances avec `tower-http` pour implémenter rigoureusement les couches `CompressionLayer` et `DecompressionLayer`, garantissant la négociation Content-Encoding (GZIP/Brotli) par streaming matériel sans sollicitation de la RAM applicative.
+  - [x] **Étape 1 (`server.rs`) :** Architecturer l'implémentation de la directive `middlewares.toml` en générant une couche d'encapsulation native stricte (`tower::Layer`) encapsulant le `Service` Hyper. Cette couche interceptera la `Request<Incoming>` _avant_ toute allocation de contexte (CORS stricts, HSTS Security Headers, IP Blocklist).
+  - [x] **Étape 2 (`cargo`) :** Enchérir l'arbre de dépendances avec `tower-http` pour implémenter rigoureusement les couches `CompressionLayer` et `DecompressionLayer`, garantissant la négociation Content-Encoding (GZIP/Brotli) par streaming matériel sans sollicitation de la RAM applicative.
 - **Critère d'Acceptation :** Rejet asynchrone d'une requête HTTP `wrk` illégitime sous les 5 micro-secondes avant même son entrée dans le Radix Trie, certifiant la résilience DDOS de la façade.
 </details>
 
 <details>
-<summary>[ ] 5.3. Routage Statique et Delivery (Zero-Copy Assets)</summary>
+<summary>[x] 5.3. Routage Statique et Delivery (Zero-Copy Assets)</summary>
 
 - **Objectif :** Affranchir l'application du besoin systémique d'un Proxy externe (Nginx) pour délivrer massivement les fichiers statiques sans épuiser la RAM du Node.
 - **Spécifications (à ne pas interpréter) :**
-  - **Étape 1 (`core_generator.rs`) :** Ajouter une directive de sous-routage TOML `type = "static"` paramétrisant un noeud terminal du Radix Trie pointant vers un service natif interfaçant un flux brut (`tokio_util::io::ReaderStream`). L'objectif est d'interdire le chargement des fichiers en RAM et d'imposer un transfert Chunking _Zero-Copy_.
-  - **Étape 2 (`build.rs`) :** Garantir que les en-têtes d'invalidation (Cache-Control, ETag) ne feront l'objet d'aucun calcul d'IO par le Runtime. Ils doivent mathématiquement découler de hashs cryptographiques (SHA-256) calculés exclusivement au moment de la génération (Build Time) par le macro-moteur.
+  - [x] **Étape 1 (`core_generator.rs`) :** Ajouter une directive de sous-routage TOML `type = "static"` paramétrisant un noeud terminal du Radix Trie pointant vers un service natif interfaçant un flux brut (`tokio_util::io::ReaderStream`). L'objectif est d'interdire le chargement des fichiers en RAM et d'imposer un transfert Chunking _Zero-Copy_.
+  - [x] **Étape 2 (`build.rs`) :** Garantir que les en-têtes d'invalidation (Cache-Control, ETag) ne feront l'objet d'aucun calcul d'IO par le Runtime. Ils doivent mathématiquement découler de hashs cryptographiques (SHA-256) calculés exclusivement au moment de la génération (Build Time) par le macro-moteur.
 - **Critère d'Acceptation :** L'obtention invariable de la note `A+` sous un audit de performances Lighthouse complet en conditions locales, prouvant la parfaite gestion des ETags et du Cache Control.
 </details>
 
 <details>
-<summary>[ ] 5.4. Exécuteurs Asynchrones Absolus (Background Tasks)</summary>
+<summary>[x] 5.4. Exécuteurs Asynchrones Absolus (Background Tasks)</summary>
 
 - **Objectif :** Empêcher irrémédiablement la mort prématurée des processus chronophages indépendants de la requête client (Envois d'emails, Indexation).
 - **Spécifications (à ne pas interpréter) :**
-  - **Étape 1 (`server.rs`) :** Initialiser formellement un Orchestrateur Singleton basé sur un canal MPSC lors du démarrage du serveur. Ce superviseur hébergera l'ensemble des descripteurs de tâches asynchrones en dehors du cycle d'acceptation TCP.
-  - **Étape 2 (`core.rs`) :** Déclarer la macro de soumission `DeferredTask::spawn(...)`, obligeant le développeur à s'affranchir du `RequestContext` Http et lui accordant un tout nouveau cycle transactionnel dédié de type "Fire and Forget".
+  - [x] **Étape 1 (`server.rs`) :** Initialiser formellement un Orchestrateur Singleton basé sur un canal MPSC lors du démarrage du serveur. Ce superviseur hébergera l'ensemble des descripteurs de tâches asynchrones en dehors du cycle d'acceptation TCP.
+  - [x] **Étape 2 (`core.rs`) :** Déclarer la macro de soumission `DeferredTask::spawn(...)`, obligeant le développeur à s'affranchir du `RequestContext` Http et lui accordant un tout nouveau cycle transactionnel dédié de type "Fire and Forget".
 - **Critère d'Acceptation :** Enregistrement et exécution intègre prouvée d'une tâche de 5 secondes, alors même que la réponse de la requête HTTP originelle ayant ordonné cette tâche a été envoyée et le flux TCP fermé en moins de 10ms.
 
 </details>
 
 <details>
-<summary>[ ] 5.5. Harness Pédagogique (SuperTest Mocking API)</summary>
+<summary>[x] 5.5. Harness Pédagogique (SuperTest Mocking API)</summary>
 
 - **Objectif :** Conférer au développeur le pouvoir de valider logiquement tout l'AppRouter via les tests standards Cargo de façon atomique et déconnectée (Sans TCP Socket).
 - **Spécifications (à ne pas interpréter) :**
-  - **Étape 1 (`lightx::test`) :** Designer une API Builder matricielle (inspirée du concept `SuperTest` JS/TS) permettant d'usurper physiquement la création d'une structure `hyper::Request<Incoming>` en RAM.
-  - **Étape 2 (`core_generator.rs`) :** Obliger formellement l'AppRouter généré (implémentant `tower::Service`) à exposer le trait `tower::ServiceExt::oneshot`. Ceci garantira l'appel d'un mock HTTP électriquement sans allocation d'un Listen Port.
+  - [x] **Étape 1 (`lightx::test`) :** Designer une API Builder matricielle (inspirée du concept `SuperTest` JS/TS) permettant d'usurper physiquement la création d'une structure `hyper::Request<Incoming>` en RAM.
+  - [x] **Étape 2 (`core_generator.rs`) :** Obliger formellement l'AppRouter généré (implémentant `tower::Service`) à exposer le trait `tower::ServiceExt::oneshot`. Ceci garantira l'appel d'un mock HTTP électriquement sans allocation d'un Listen Port.
 - **Critère d'Acceptation :** Les intégrateurs métier (Business Objects), via `cargo test`, manipulent virtuellement des headers, tokens JWT et frames JSON sans jamais devoir dépendre de `tokio::net::TcpListener`.
 
 </details>

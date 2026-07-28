@@ -24,6 +24,7 @@ pub mod core_generator;
 pub mod handler_generator;
 pub mod logger;
 pub mod server;
+pub mod test;
 
 /// Extensions re-exported for the generated code.
 /// Only production-necessary crates are exposed.
@@ -46,6 +47,8 @@ pub mod ext {
     pub use tokio;
     pub use tokio_rustls;
     pub use tokio_tungstenite;
+    pub use tokio_util;
+    pub use tower;
     pub use tracing;
     pub use tracing_opentelemetry;
 }

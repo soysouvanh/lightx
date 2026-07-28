@@ -16,7 +16,7 @@ pub fn axum_benchmark(c: &mut Criterion) {
     c.bench_function("axum_router_build", |b| {
         b.iter(|| {
             let app = AxumRouter::<()>::new()
-                .route("/api/admin-creation/{*rest}", get(|| async { "Hello" }));
+                .route("/api/admin-creation/*rest", get(|| async { "Hello" }));
             let _ = criterion::black_box(app);
         })
     });

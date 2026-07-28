@@ -66,6 +66,12 @@ impl UserBo {
         admin_role.insert(ctx).await?;
 
         let json = format!("{{\"user_id\":{}}}", new_user_id);
+
+        // 5. Broadcast instantané "Pub/Sub" de la création
+        let _ = ctx
+            .global_state
+            .send(lightx::ext::bytes::Bytes::from(json.clone()));
+
         let resp = lightx::ext::hyper::Response::builder()
             .status(200)
             .header("Content-Type", "application/json")

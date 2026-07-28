@@ -117,6 +117,107 @@ async fn run_handler() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+///  Executes the Pub/Sub WebSocket workflow (Verification of 5.1).
+async fn run_pubsub() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n---  TESTING PUBSUB (WEBSOCKET SHARED STATE) ---");
+    let mut ctx = RequestContext::new_sandbox_context().await.unwrap();
+
+    // Simulate a pool of connected WebSocket clients listening to the global shared state
+    let mut rx1 = ctx.global_state.subscribe();
+    let mut rx2 = ctx.global_state.subscribe();
+
+    let json_body = serde_json::json!({
+        "email": "pubsub@lightx.com",
+        "first_name": "Pub",
+        "last_name": "Sub",
+        "accept_terms": true
+    });
+    ctx.raw_body = lightx::ext::bytes::Bytes::from(json_body.to_string());
+    let payload = crate::AdminCreationHandler::check_parameters(&ctx)?;
+
+    // Simulate HTTP POST executing Business Object which will mutate the DB and Broadcast
+    match bo::user_bo::UserBo::execute_admin_creation(&mut ctx, &payload).await {
+        Ok(_) => println!(" Business Mutation executed, broadcasting to clients!"),
+        Err(e) => println!(" Failed to execute BO for Pub/Sub: {}", e),
+    }
+
+    // Instantly receive messages on both clients without congestion
+    let msg1 = rx1.recv().await?;
+    let msg2 = rx2.recv().await?;
+
+    println!(
+        " WebSocket Client 1 received: {}",
+        String::from_utf8_lossy(&msg1)
+    );
+    println!(
+        " WebSocket Client 2 received: {}",
+        String::from_utf8_lossy(&msg2)
+    );
+    assert_eq!(msg1, msg2);
+
+    if ctx.default_tx.is_some() {
+        ctx.commit_default_tx().await?;
+        println!(" Pub/Sub Transaction committed to Database.");
+    }
+    Ok(())
+}
+
+async fn run_supertest(
+    factory: std::sync::Arc<crate::AppContextFactory>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n--- 🧪 TESTING SUPERTEST MOCKING API ---");
+    let app = crate::AppRouter { factory };
+
+    // Simulate HTTP in memory natively via Tower
+    let response = lightx::test::SuperTest::get(app.clone(), "/public/test.css")
+        .header(
+            "if-none-match",
+            "\"7a28aff6af5c05621605213cda37fef7022601ca541471732d5f32fff7ef77dc\"",
+        )
+        .send()
+        .await;
+
+    assert_eq!(
+        response.status().as_u16(),
+        304,
+        "SuperTest Mocking API Failed!"
+    );
+    println!(" SuperTest executed 304 Not Modified perfectly in O(1) mathematically without TCP!");
+    Ok(())
+}
+
+async fn run_background_tasks() -> Result<(), Box<dyn std::error::Error>> {
+    println!("\n--- ⏳ TESTING ABSOLUTE DEFERRED TASKS ---");
+    // Ensure the orchestrator is running
+    lightx::server::init_background_orchestrator();
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+    let start_time = std::time::Instant::now();
+
+    // Simulating a Handler delegating a heavy task
+    lightx::core::DeferredTask::spawn(async move {
+        // Heavy blocking task detached from TCP
+        tokio::time::sleep(tokio::time::Duration::from_millis(5000)).await;
+        println!(" [BACKGROUND] 5-second heavy task finally completed!");
+        let _ = tx.send(());
+    });
+
+    let elapsed = start_time.elapsed().as_millis();
+    println!(
+        " [HTTP] Response returned to user instantaneously out of handler in {}ms.",
+        elapsed
+    );
+    assert!(
+        elapsed < 10,
+        "Task submission took too long, blocking the HTTP flow"
+    );
+
+    // Await strictly for test synchronization, otherwise main exits and kills Tokio
+    rx.recv().await;
+    println!(" Orchestrator successfully supervised Background Task to completion independently.");
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(" Starting LightX Test Suite...");
@@ -144,7 +245,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let factory = std::sync::Arc::new(crate::AppContextFactory::new().await?);
 
     // Nettoyage des données de test précédentes pour éviter les erreurs SQL 1062
-    sqlx::query("DELETE FROM users WHERE email IN ('boss@lightx.com', 'vp@lightx.com')")
+    sqlx::query("DELETE FROM users WHERE email IN ('boss@lightx.com', 'vp@lightx.com', 'pubsub@lightx.com')")
         .execute(&factory.default_pool)
         .await?;
 
@@ -154,6 +255,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_dao().await?;
     run_bo().await?;
     run_handler().await?;
+    run_pubsub().await?;
+    run_background_tasks().await?;
+    run_supertest(factory.clone()).await?;
 
     println!("\n All LightX layers tested successfully!");
 
@@ -163,7 +267,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cert_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../certs/lightx.loc.pem");
     let key_path = concat!(env!("CARGO_MANIFEST_DIR"), "/../certs/lightx.loc.key");
 
-    let router = std::sync::Arc::new(crate::AppRouter);
+    let router = std::sync::Arc::new(crate::AppRouter {
+        factory: factory.clone(),
+    });
     lightx::server::listen_tls(addr, factory, router, cert_path, key_path).await?;
 
     Ok(())
