@@ -1,0 +1,3 @@
+[server]
+start = "Starting the server..."
+stop = "Server stopped."

@@ -1,0 +1,2 @@
+[default]
+connection_string_env = "DATABASE_URL"

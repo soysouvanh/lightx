@@ -1,0 +1,10 @@
+[book]
+authors = ["Vincent SOYSOUVANH"]
+language = "en"
+multilingual = false
+src = "src"
+title = "LightX Framework - Documentation"
+
+[output.html]
+git-repository-url = "https://github.com/soysouvanh/lightx"
+edit-url-template = "https://github.com/soysouvanh/lightx/edit/main/docs/{path}"

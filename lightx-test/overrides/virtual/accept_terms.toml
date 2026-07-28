@@ -1,0 +1,36 @@
+[type]
+value = "bool"
+message = "schema.type.message"
+
+[is_optional]
+value = false
+message = "schema.is_optional.message"
+
+[enum_values]
+value = ["true", "false"]
+message = "schema.enum_values.message"
+
+
+# [max_length]
+# bool parameters do not need length checks
+# value = 
+# message = 
+
+# [min_length]
+# value = 
+# message = 
+
+# [min_value]
+# value = 
+# message = 
+
+# [max_value]
+# value = 
+# message = 
+
+# [format]
+# value = '^(true|false)$'
+# message = "schema.format.message"
+
+[business_rules]
+must_be_true = "overrides.virtual.accept_terms.business_rules.must_be_true"

@@ -1,0 +1,49 @@
+name: Rust Security Audit & Fuzzing
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  DATABASE_URL: offline
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust Stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
+    - name: Run Clippy
+      run: cargo clippy --workspace --all-targets -- -D warnings
+    - name: Run Tests
+      run: cargo test --workspace
+
+  miri-audit:
+    name: "Heuristic Shield: Miri UB check"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust Nightly Miri
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: miri
+    - name: Miri Check
+      run: cargo miri test --workspace
+      env:
+        MIRIFLAGS: -Zmiri-disable-isolation
+
+  cargo-audit:
+    name: "SecOps: Vulnerability Scan"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    - name: Run audit ignoring configured unpatchable upstream vulnerabilities
+      run: cargo audit

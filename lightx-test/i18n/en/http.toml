@@ -1,0 +1,16 @@
+[error]
+[error.400]
+invalid_body = "The request body is invalid."
+malformed_json = "The provided JSON is malformed."
+
+[error.401]
+unauthorized = "Authentication required."
+
+[error.403]
+forbidden = "You do not have permission to perform this action."
+
+[error.404]
+not_found = "The requested route could not be found."
+
+[error.500]
+internal = "An internal server error occurred."

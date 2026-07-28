@@ -1,0 +1,21 @@
+[package]
+name = "lightx-benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.97.1"
+authors.workspace = true
+description = "Benchmarking LightX vs Axum vs Salvo"
+
+[dependencies]
+lightx = { path = "../lightx" }
+axum = "0.7"
+salvo = "0.74"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros"] }
+hyper = { version = "1.4", features = ["http1", "http2", "server"] }
+http-body-util = "0.1"
+bytes = "1"
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "router_benchmark"
+harness = false

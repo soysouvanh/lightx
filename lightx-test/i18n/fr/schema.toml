@@ -1,0 +1,23 @@
+[type]
+message = "Le type de donnée est incorrect."
+
+[is_optional]
+message = "La donnée est obligatoire."
+
+[max_length]
+message = "La longueur maximale de {0} caractère(s) est dépassée."
+
+[min_length]
+message = "La longueur minimale de {0} caractère(s) n'est pas atteinte."
+
+[min_value]
+message = "La valeur minimale attendue est supérieure ou égale à {0}."
+
+[max_value]
+message = "La valeur maximale attendue est inférieure ou égale à {0}."
+
+[format]
+message = "Le format de la donnée est invalide."
+
+[enum_values]
+message = "La valeur renseignée n'est pas autorisée."

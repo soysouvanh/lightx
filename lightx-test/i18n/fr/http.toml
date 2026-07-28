@@ -1,0 +1,16 @@
+[error]
+[error.400]
+invalid_body = "Le corps de la requête est invalide."
+malformed_json = "Le JSON envoyé est malformé."
+
+[error.401]
+unauthorized = "Authentification requise."
+
+[error.403]
+forbidden = "Vous n'avez pas les droits pour effectuer cette action."
+
+[error.404]
+not_found = "La route demandée est introuvable."
+
+[error.500]
+internal = "Une erreur serveur interne est survenue."

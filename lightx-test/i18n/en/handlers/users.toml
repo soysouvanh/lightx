@@ -1,0 +1,2 @@
+not_found = "The requested user could not be found."
+already_exists = "A user with this email already exists."

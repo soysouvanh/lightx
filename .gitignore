@@ -1,0 +1,42 @@
+# Build Artifacts
+spec/
+target/
+**/*.rs.bk
+
+# Cryptography & Secrets
+/certs/
+.env
+.env.*
+!.env.example
+
+# Server Logs
+/log/
+/lightx-test/log/
+*.log
+
+# IDE & OS Files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Coverage & Profiling (cargo-tarpaulin, LLVM)
+*.profraw
+*.profdata
+tarpaulin-report.html
+cobertura.xml
+flamegraph.svg
+perf.data
+
+# Local Databases (just in case local SQLite overrides are used)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Others
+/spec/
+/assets/*.mmd
+
+# Documentation (mdBook build output)
+/docs/book/

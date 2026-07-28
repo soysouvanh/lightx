@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightX - Frontend Amorce</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #0f111a;
+        --glass-bg: rgba(255, 255, 255, 0.03);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --primary: #6366f1;
+        --success: #10b981;
+        --error: #ef4444;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Outfit", sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-image:
+          radial-gradient(
+            circle at top right,
+            rgba(99, 102, 241, 0.15) 0%,
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at bottom left,
+            rgba(16, 185, 129, 0.1) 0%,
+            transparent 40%
+          );
+      }
+
+      .card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 40px;
+        width: 100%;
+        max-width: 480px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        transition: transform 0.3s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-2px);
+      }
+
+      h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      p.subtitle {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+
+      .input-group {
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        font-weight: 400;
+      }
+
+      input {
+        width: 100%;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: white;
+        font-family: inherit;
+        font-size: 15px;
+        transition: all 0.2s ease;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+      }
+
+      .error-msg {
+        color: var(--error);
+        font-size: 12px;
+        margin-top: 6px;
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      button {
+        width: 100%;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 10px;
+      }
+
+      button:hover {
+        background: #4f46e5;
+        transform: scale(1.02);
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+
+      .toast {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 14px;
+        transform: translateX(150%);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+
+      .toast.show {
+        transform: translateX(0);
+      }
+      .toast.error {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid var(--error);
+        color: #fca5a5;
+      }
+      .toast.success {
+        background: rgba(16, 185, 129, 0.2);
+        border: 1px solid var(--success);
+        color: #6ee7b7;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toast" id="toast"></div>
+
+    <div class="card">
+      <h1>Création Administrateur</h1>
+      <p class="subtitle">Mockup Frontend pour valider les JSON de l'Axe 3.</p>
+
+      <form id="adminForm">
+        <div class="input-group">
+          <label for="first_name">Prénom</label>
+          <input type="text" id="first_name" placeholder="Ex: John" />
+          <div class="error-msg" id="err_first_name"></div>
+        </div>
+
+        <div class="input-group">
+          <label for="last_name">Nom</label>
+          <input type="text" id="last_name" placeholder="Ex: Doe" />
+          <div class="error-msg" id="err_last_name"></div>
+        </div>
+
+        <div class="input-group">
+          <label for="email">Adresse Email (@lightx.com)</label>
+          <input type="text" id="email" placeholder="Ex: boss@lightx.com" />
+          <div class="error-msg" id="err_email"></div>
+        </div>
+
+        <div class="input-group">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="accept_terms" style="width: auto; cursor: pointer;" />
+            <span>J'accepte les responsabilités système (Virtuel)</span>
+          </label>
+          <div class="error-msg" id="err_accept_terms"></div>
+        </div>
+
+        <button type="submit" id="submitBtn">Créer le compte système</button>
+      </form>
+    </div>
+
+    <script>
+      // --- DICTIONNAIRE LOCAL SIMULÉ ---
+      // Dans la vraie vie, un script au build JS fusionne les `/i18n/*.toml` du backend
+      // dans un gros JSON, ou on les sert via un endpoint API.
+      const I18N_DICTIONARY = {
+        "http.error.400.malformed_json": "Syntaxe serveur incompréhensible.",
+        "http.error.404.not_found":
+          "Ce service ne répond pas ou a été désactivé.",
+        "http.error.500.internal": "Nos puces fondent. Erreur système interne.",
+      };
+
+      const form = document.getElementById("adminForm");
+      const btn = document.getElementById("submitBtn");
+      const toast = document.getElementById("toast");
+
+      function showToast(msg, type) {
+        toast.textContent = msg;
+        toast.className = `toast show ${type}`;
+        setTimeout(() => (toast.className = "toast"), 4000);
+      }
+
+      function clearErrors() {
+        document
+          .querySelectorAll(".error-msg")
+          .forEach((el) => (el.style.display = "none"));
+      }
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+        btn.textContent = "Traitement...";
+
+        const payload = {
+          first_name: document.getElementById("first_name").value,
+          last_name: document.getElementById("last_name").value,
+          email: document.getElementById("email").value,
+          accept_terms: document.getElementById("accept_terms").checked ? "true" : "false",
+        };
+
+        try {
+          // Fetch direct à LightX (Attention, nécessitera un reverse proxy ou CORS layer en vrai projet)
+          const response = await fetch(
+            "https://lightx.loc:8443/admin-creation",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            },
+          );
+
+          const data = await response.json();
+
+          if (response.ok || data.status === "success") {
+            showToast("🎉 Administrateur propulsé avec succès !", "success");
+            form.reset();
+          } else {
+            // C'EST L'AXE 3 : Traitement O(1) de l'erreur Front
+            const errorCode = data.code;
+            const errorField = data.field;
+            let errorMsg = data.error;
+
+            // Traduction à la volée si c'est une clé technique standard
+            if (I18N_DICTIONARY[errorMsg]) {
+              errorMsg = I18N_DICTIONARY[errorMsg];
+            }
+
+            if (errorCode === 400 && errorField) {
+              // Erreur de Validation Ciblée (AOP Fail-Fast)
+              const errNode = document.getElementById(`err_${errorField}`);
+              if (errNode) {
+                errNode.textContent = errorMsg;
+                errNode.style.display = "block";
+                document.getElementById(errorField).focus();
+              } else {
+                showToast(errorMsg, "error");
+              }
+            } else if (errorCode === 422) {
+              // Erreur Métier
+              if (errorField && document.getElementById(`err_${errorField}`)) {
+                document.getElementById(`err_${errorField}`).textContent =
+                  errorMsg;
+                document.getElementById(`err_${errorField}`).style.display =
+                  "block";
+              } else {
+                showToast(errorMsg, "error");
+              }
+            } else {
+              // Erreur technique globale (404, 500...)
+              showToast(`Erreur ${errorCode}: ${errorMsg}`, "error");
+            }
+          }
+        } catch (err) {
+          // Si la BDD refuse ou le TLS pète
+          showToast(
+            "Le serveur est introuvable ou le CORS a bloqué (cf. readme).",
+            "error",
+          );
+        } finally {
+          btn.textContent = "Créer le compte système";
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+[type]
+value = "Vec<u8>"
+message = "schema.type.message"
+
+[is_optional]
+value = false
+message = "schema.is_optional.message"
+
+# [enum_values]
+# value = []
+# message = 
+
+[max_length]
+value = 16
+message = "schema.max_length.message|16"
+
+[min_length]
+value = 1
+message = "schema.min_length.message|1"
+
+# [min_value]
+# value = 
+# message = 
+
+# [max_value]
+# value = 
+# message = 
+
+[format]
+value = '^[0-9]{1,16}$'
+message = "schema.format.message"
+
+[is_primary_key]
+value = true
+
+[is_auto_increment]
+value = false
+
+[business_rules]
+

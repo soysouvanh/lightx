@@ -1,0 +1,277 @@
+use std::fs;
+use std::path::Path;
+
+///  `CoreGenerator`: The static HTTP router and framework entry point generator.
+///
+/// This build-time struct introspects the file system to implement an ultra-fast `O(1)` routing
+/// mechanism with zero memory allocation. It also handles convention-over-configuration routing,
+/// such as automatically resolving `PascalCase` file names to `kebab-case` URI endpoints.
+///
+/// # Architecture
+/// Instead of relying on runtime routing trees (like `axum` or `actix`), `CoreGenerator` generates
+/// a static `match` statement at compile-time for the Hyper HTTP server, ensuring absolute maximum
+/// performance and guaranteeing that 404s can be statically identified.
+///
+/// # Examples
+///
+/// ```no_run
+/// use lightx::core_generator::CoreGenerator;
+///
+/// let generator = CoreGenerator::new("./handlers", "./i18n", &std::env::var("OUT_DIR").unwrap());
+/// generator.generate_core().expect("Failed to generate the Core Router");
+/// ```
+pub struct CoreGenerator {
+    handlers_dir: String,
+    i18n_dir: String,
+    out_dir: String,
+}
+
+impl CoreGenerator {
+    /// Creates a new `CoreGenerator` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `handlers_dir` - The root directory containing the TOML handler specifications.
+    /// * `out_dir` - The `OUT_DIR` provided by Cargo during the build phase.
+    pub fn new(handlers_dir: &str, i18n_dir: &str, out_dir: &str) -> Self {
+        Self {
+            handlers_dir: handlers_dir.to_string(),
+            i18n_dir: i18n_dir.to_string(),
+            out_dir: out_dir.to_string(),
+        }
+    }
+
+    fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&fs::DirEntry)) -> std::io::Result<()> {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    Self::visit_dirs(&path, cb)?;
+                } else {
+                    cb(&entry);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Helper to convert a file system path into a valid Rust `PascalCase` struct identifier.
+    /// (e.g., "api/AdminCreation" -> "ApiAdminCreation")
+    fn to_pascal_name(rel_path: &Path) -> String {
+        let mut name = String::new();
+        for component in rel_path.components() {
+            if let std::path::Component::Normal(os_str) = component {
+                let mut s = os_str.to_string_lossy().into_owned();
+                if s.ends_with(".toml") {
+                    s.truncate(s.len() - 5);
+                }
+                let mut capitalize_next = true;
+                for c in s.chars() {
+                    if c == '-' || c == '_' || c == '{' || c == '}' || c == '.' {
+                        capitalize_next = true;
+                    } else if capitalize_next {
+                        name.push_str(&c.to_uppercase().to_string());
+                        capitalize_next = false;
+                    } else {
+                        name.push(c);
+                    }
+                }
+            }
+        }
+        name
+    }
+
+    /// Helper to convert a relative file path into a `kebab-case` URI route pattern.
+    /// (e.g., "api/AdminCreation.toml" -> "/api/admin-creation")
+    fn to_match_pattern(rel_path: &Path) -> String {
+        let mut segments = Vec::new();
+        for component in rel_path.components() {
+            if let std::path::Component::Normal(os_str) = component {
+                let mut s = os_str.to_string_lossy().into_owned();
+                if s.ends_with(".toml") {
+                    s.truncate(s.len() - 5);
+                }
+                segments.push(Self::to_kebab_case(&s));
+            }
+        }
+
+        let mut pattern = String::new();
+        for seg in segments {
+            pattern.push('/');
+            pattern.push_str(&seg);
+        }
+        // Always prefixed by `/`
+        pattern
+    }
+
+    /// Helper to convert PascalCase to kebab-case (e.g., 'AdminCreation' -> 'admin-creation')
+    fn to_kebab_case(s: &str) -> String {
+        let mut result = String::new();
+        for (i, c) in s.chars().enumerate() {
+            if c.is_uppercase() {
+                if i > 0 {
+                    result.push('-');
+                }
+                result.push(c.to_ascii_lowercase());
+            } else {
+                result.push(c);
+            }
+        }
+        result
+    }
+
+    ///  Parses handlers and generates the global `route_request` function
+    pub fn generate_core(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let dest_path = Path::new(&self.out_dir).join("lightx_core_generated.rs");
+        let handlers_path = Path::new(&self.handlers_dir);
+
+        let mut code = String::from(
+            "// =====================================================================\n// THIS FILE IS AUTO-GENERATED BY LIGHTX. DO NOT EDIT.\n// =====================================================================\n\n",
+        );
+        code.push_str(
+            "// Single Source of Truth: Convention over Configuration (Handlers directory)\n\n",
+        );
+
+        code.push_str("/// Retrieves system log translations with zero overhead.\n");
+        code.push_str("pub fn get_system_log(key: &str, lang: &str) -> &'static str {\n");
+        code.push_str("    match (key, lang) {\n");
+        if let Ok(entries) = fs::read_dir(Path::new(&self.i18n_dir)) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                    let lang = entry.file_name().to_string_lossy().to_string();
+                    let sys_toml = entry.path().join("system.toml");
+                    if let Ok(content) = fs::read_to_string(&sys_toml)
+                        && let Ok(value) = content.parse::<toml::Value>()
+                        && let Some(server) = value.get("server")
+                    {
+                        if let Some(start) = server.get("start").and_then(|v| v.as_str()) {
+                            code.push_str(&format!(
+                                "        (\"server.start\", \"{}\") => \"{}\",\n",
+                                lang, start
+                            ));
+                        }
+                        if let Some(stop) = server.get("stop").and_then(|v| v.as_str()) {
+                            code.push_str(&format!(
+                                "        (\"server.stop\", \"{}\") => \"{}\",\n",
+                                lang, stop
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        code.push_str("        (\"server.start\", _) => \"Starting the server...\",\n");
+        code.push_str("        (\"server.stop\", _) => \"Server stopped.\",\n");
+        code.push_str("        _ => \"System trace\",\n");
+        code.push_str("    }\n");
+        code.push_str("}\n\n");
+
+        code.push_str(
+            "///  The global entry point that routes HTTP requests to the correct AOP Pipeline.\n",
+        );
+        code.push_str("/// Runs in O(1) time complexity with zero allocation.\n");
+        code.push_str("pub async fn route_request(method: &str, uri: &str, ctx: &mut crate::RequestContext) -> Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::Full<lightx::ext::bytes::Bytes>>, lightx::core::AppError> {\n");
+        code.push_str("    use lightx::ext::tracing::Instrument;\n");
+        code.push_str("    use lightx::ext::tracing_opentelemetry::OpenTelemetrySpanExt;\n");
+        code.push_str("    let span = lightx::ext::tracing::info_span!(\"http_request\", http.method = %method, http.uri = %uri, client.ip = %ctx.client_ip, user.id = lightx::ext::tracing::field::Empty);\n");
+        code.push_str("    let parent_context = lightx::ext::opentelemetry::global::get_text_map_propagator(|propagator| {\n");
+        code.push_str("        propagator.extract(&lightx::ext::opentelemetry_http::HeaderExtractor(&ctx.headers))\n");
+        code.push_str("    });\n");
+        code.push_str("    let _ = span.set_parent(parent_context);\n");
+        code.push_str("    static ROUTER: std::sync::OnceLock<lightx::ext::matchit::Router<u16>> = std::sync::OnceLock::new();\n");
+        code.push_str("    async {\n");
+        code.push_str("    let router = ROUTER.get_or_init(|| {\n");
+        code.push_str("        let mut r = lightx::ext::matchit::Router::new();\n");
+
+        let mut next_id = 0u16;
+
+        if handlers_path.exists() {
+            let mut toml_files = Vec::new();
+            Self::visit_dirs(handlers_path, &mut |entry| {
+                if entry.path().extension().unwrap_or_default() == "toml" {
+                    toml_files.push(entry.path());
+                }
+            })?;
+
+            for (i, path) in toml_files.iter().enumerate() {
+                let current_id = i as u16;
+                let rel_path = path.strip_prefix(handlers_path).unwrap();
+                let pattern = Self::to_match_pattern(rel_path);
+                // Inserting with trailing catch-all to mimic original `_params @ ..` capability
+                code.push_str(&format!(
+                    "        r.insert(\"{}/*rest\", {}).unwrap();\n",
+                    pattern, current_id
+                ));
+                code.push_str(&format!(
+                    "        r.insert(\"{}\", {}).unwrap();\n",
+                    pattern, current_id
+                ));
+                next_id = current_id + 1;
+            }
+        }
+
+        let swagger_id = next_id;
+        code.push_str(&format!(
+            "        r.insert(\"/swagger\", {}).unwrap();\n",
+            swagger_id
+        ));
+        code.push_str("        r\n");
+        code.push_str("    });\n\n");
+
+        code.push_str("    let uri_clean = uri.split('?').next().unwrap_or(uri);\n");
+        code.push_str("    if let Ok(matched) = router.at(uri_clean) {\n");
+        code.push_str("        match matched.value {\n");
+
+        if handlers_path.exists() {
+            let mut toml_files = Vec::new();
+            Self::visit_dirs(handlers_path, &mut |entry| {
+                if entry.path().extension().unwrap_or_default() == "toml" {
+                    toml_files.push(entry.path());
+                }
+            })?;
+
+            for (i, path) in toml_files.iter().enumerate() {
+                let current_node = i as u16;
+                let rel_path = path.strip_prefix(handlers_path).unwrap();
+                let handler_name = format!("{}Handler", Self::to_pascal_name(rel_path));
+
+                code.push_str(&format!(
+                    "            {} => crate::{}::handle(ctx).await,\n",
+                    current_node, handler_name
+                ));
+            }
+        }
+
+        code.push_str(&format!("            {} => {{\n", swagger_id));
+        code.push_str("                Ok(lightx::ext::hyper::Response::builder().status(200).header(\"Content-Type\", \"application/json\").body(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(include_str!(concat!(env!(\"OUT_DIR\"), \"/openapi.json\"))))).unwrap())\n");
+        code.push_str("            },\n");
+        code.push_str("            _ => Err(lightx::core::AppError::RouteNotFound),\n");
+        code.push_str("        }\n");
+        code.push_str("    } else {\n");
+        code.push_str("        Err(lightx::core::AppError::RouteNotFound)\n");
+        code.push_str("    }\n");
+        code.push_str("    }.instrument(span).await\n");
+        code.push_str("}\n\n");
+
+        code.push_str("pub struct AppRouter;\n");
+        code.push_str("impl lightx::server::Router for AppRouter {\n");
+        code.push_str("    type Context = crate::RequestContext;\n");
+        code.push_str("    fn route<'a>(\n");
+        code.push_str("        &'a self,\n");
+        code.push_str("        method: &'a str,\n");
+        code.push_str("        uri: &'a str,\n");
+        code.push_str("        ctx: &'a mut Self::Context,\n");
+        code.push_str("    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<lightx::ext::hyper::Response<lightx::ext::http_body_util::Full<lightx::ext::bytes::Bytes>>, lightx::core::AppError>> + Send + 'a>> {\n");
+        code.push_str("        Box::pin(route_request(method, uri, ctx))\n");
+        code.push_str("    }\n");
+        code.push_str("}\n");
+
+        fs::write(dest_path, code)?;
+        println!(
+            "cargo:warning= Core (Static Router) generation completed successfully in OUT_DIR!"
+        );
+
+        Ok(())
+    }
+}

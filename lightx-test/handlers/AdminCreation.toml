@@ -1,0 +1,17 @@
+# Fichier de Définition AOP (Zero-Cost Abstraction)
+
+# 1. PARAMÈTRES (Génère le check_parameters du Core)
+[parameters]
+# Mapping strict avec le Dictionnaire de Données (users_table.toml)
+email = "users.email"
+first_name = "users.first_name"
+last_name = "users.last_name"
+accept_terms = ""
+
+# 2. ORCHESTRATION MÉTIER
+[pipeline]
+# Phase 1 : Hors-Transaction (Échoue vite sans solliciter le serveur SQL)
+validations = ["user_bo::UserBo::validate_admin_creation"]
+
+# Phase 2 : Mode Transactionnel (Les DAO se connectent paresseusement)
+processings = ["user_bo::UserBo::execute_admin_creation"]

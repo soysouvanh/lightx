@@ -1,0 +1,15 @@
+[package]
+name = "lightx-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "LightX Framework Automation CLI."
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap = { version = "4.6.4", features = ["derive"] }
+tokio = { version = "1.37", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "mysql", "migrate"] }
+dotenvy = "0.15"
+daox = { version = "0.1.0", path = "../../daox-workspace/daox" }

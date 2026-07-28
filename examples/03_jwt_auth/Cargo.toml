@@ -1,0 +1,22 @@
+
+[package]
+name = "jwt_auth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lightx = { path = "../../lightx" }
+tokio = { version = "1.37.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.8", features = ["runtime-tokio", "mysql"] }
+dotenvy = "0.15"
+
+[build-dependencies]
+lightx = { path = "../../lightx" }
+dotenvy = "0.15"
+tokio = { version = "1.37.0", features = ["full"] }
+daox = { version = "0.1.0", path = "../../../daox-workspace/daox" }
+
+[dev-dependencies]
+lightx-macro = { path = "../../lightx-macro" }

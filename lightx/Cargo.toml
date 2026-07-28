@@ -1,0 +1,67 @@
+[package]
+name = "lightx"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.97.1"
+authors.workspace = true
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["framework", "web", "router", "database", "zero-overhead"]
+categories = ["web-programming", "development-tools"]
+
+[features]
+default = ["mysql"]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
+
+[dependencies]
+daox = { path = "../../daox-workspace/daox" }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "chrono",
+    "uuid",
+    "json",
+    "any",
+] }
+tokio = { version = "1.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "net",
+    "time",
+    "signal",
+] }
+hyper = { version = "1.4", features = ["http1", "http2", "server"] }
+hyper-util = { version = "0.1", features = ["tokio", "service"] }
+http-body-util = "0.1"
+http = "1.1"
+bytes = "1"
+serde_json = "1.0"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+tokio-rustls = { version = "0.26", default-features = false, features = [
+    "ring",
+] }
+rustls-pemfile = "2.1"
+chrono = "0.4"
+regex = "1.10"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+moka = { version = "0.12.15", features = ["sync"] }
+jsonwebtoken = "11.0.0"
+matchit = "0.7.3"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+tracing-opentelemetry = "0.33.0"
+opentelemetry = "0.32.0"
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.32.0"
+opentelemetry-http = "0.32.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

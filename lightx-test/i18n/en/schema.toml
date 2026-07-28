@@ -1,0 +1,23 @@
+[type]
+message = "Data type is incorrect."
+
+[is_optional]
+message = "This field is required."
+
+[max_length]
+message = "The maximum length of {0} character(s) has been exceeded."
+
+[min_length]
+message = "The minimum length of {0} character(s) has not been reached."
+
+[min_value]
+message = "The expected minimum value is {0} or higher."
+
+[max_value]
+message = "The expected maximum value is {0} or lower."
+
+[format]
+message = "The data format is invalid."
+
+[enum_values]
+message = "The provided value is not allowed."

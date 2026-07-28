@@ -1,0 +1,31 @@
+{
+  "framework": "lightx",
+  "tests": [
+    {
+      "default": {
+        "os": "Linux",
+        "database_os": "Linux",
+        "display_name": "lightx",
+        "notes": "LightX TechEmpower Benchmark Configuration"
+      },
+      "plaintext": {
+        "port": 8080
+      },
+      "json": {
+        "port": 8080
+      },
+      "db": {
+        "port": 8080
+      },
+      "queries": {
+        "port": 8080
+      },
+      "fortunes": {
+        "port": 8080
+      },
+      "updates": {
+        "port": 8080
+      }
+    }
+  ]
+}
