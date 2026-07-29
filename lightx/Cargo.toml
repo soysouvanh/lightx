@@ -10,12 +10,14 @@ license.workspace = true
 repository.workspace = true
 keywords = ["framework", "web", "router", "database", "zero-overhead"]
 categories = ["web-programming", "development-tools"]
+exclude = ["fuzz/"]
 
 [features]
 default = ["mysql"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]
+testing = []
 
 [dependencies]
 daox = { path = "../../daox-workspace/daox", version = "0.2.0" }

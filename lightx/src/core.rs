@@ -251,7 +251,7 @@ macro_rules! bail_system {
     };
 }
 
-static JWT_DECODING_KEY: std::sync::OnceLock<crate::ext::jsonwebtoken::DecodingKey> =
+static JWT_DECODING_KEY: std::sync::OnceLock<Option<crate::ext::jsonwebtoken::DecodingKey>> =
     std::sync::OnceLock::new();
 static JWT_VALIDATION: std::sync::OnceLock<crate::ext::jsonwebtoken::Validation> =
     std::sync::OnceLock::new();
@@ -264,11 +264,23 @@ struct JwtClaims {
 
 /// Global Authenticator Primitive (AOP)
 pub async fn verify_jwt(token: &str) -> Result<String, AppError> {
-    let key = JWT_DECODING_KEY.get_or_init(|| {
-        let secret = std::env::var("JWT_SECRET")
-            .unwrap_or_else(|_| "military_grade_secret_default_change_me_in_prod".to_string());
-        crate::ext::jsonwebtoken::DecodingKey::from_secret(secret.as_bytes())
+    let key_opt = JWT_DECODING_KEY.get_or_init(|| {
+        std::env::var("JWT_SECRET")
+            .ok()
+            .map(|secret| crate::ext::jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()))
     });
+
+    let key = match key_opt {
+        Some(k) => k,
+        None => {
+            crate::logger::error("FATAL: JWT_SECRET environment variable is missing".to_string());
+            return Err(AppError::SystemError {
+                msg: "Internal Server Error: Missing JWT Secret".into(),
+                file: file!(),
+                line: line!(),
+            });
+        }
+    };
 
     let validation = JWT_VALIDATION.get_or_init(|| {
         let mut v =
@@ -315,10 +327,10 @@ impl DeferredTask {
     {
         let tx = crate::server::get_background_tx();
         if let Err(e) = tx.try_send(Box::pin(fut)) {
-            eprintln!(
+            crate::logger::error(format!(
                 "CRITICAL: DeferredTask Failed to reach Orchestrator (OOM DOS Prevention): {}",
                 e
-            );
+            ));
         }
     }
 }

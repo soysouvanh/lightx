@@ -485,7 +485,7 @@ pub async fn listen<C: Send + 'static>(
 ) -> Result<(), Box<dyn std::error::Error>> {
     init_background_orchestrator();
     let listener = TcpListener::bind(addr).await?;
-    println!(" LightX Server listening on http://{}", addr);
+    crate::logger::info(format!(" LightX Server listening on http://{}", addr));
 
     loop {
         let (stream, peer_addr) = listener.accept().await?;
@@ -503,7 +503,9 @@ pub async fn listen<C: Send + 'static>(
             )
             .await;
             match result {
-                Ok(Err(err)) => eprintln!("Error serving connection: {:?}", err),
+                Ok(Err(err)) => {
+                    crate::logger::error(format!("Error serving connection: {:?}", err))
+                }
                 Err(_elapsed) => { /* Connection killed silently after timeout */ }
                 Ok(Ok(())) => {}
             }
@@ -594,7 +596,10 @@ pub async fn listen_tls<C: Send + 'static>(
     let tls_acceptor = TlsAcceptor::from(Arc::new(config));
     let listener = TcpListener::bind(addr).await?;
 
-    println!(" LightX TLS Server listening securely on https://{}", addr);
+    crate::logger::info(format!(
+        " LightX TLS Server listening securely on https://{}",
+        addr
+    ));
 
     loop {
         let (tcp_stream, peer_addr) = listener.accept().await?;
@@ -619,13 +624,15 @@ pub async fn listen_tls<C: Send + 'static>(
                     )
                     .await;
                     match result {
-                        Ok(Err(err)) => eprintln!("Error serving TLS connection: {:?}", err),
+                        Ok(Err(err)) => {
+                            crate::logger::error(format!("Error serving TLS connection: {:?}", err))
+                        }
                         Err(_elapsed) => { /* Connection killed silently after timeout */ }
                         Ok(Ok(())) => {}
                     }
                 }
                 Ok(Err(err)) => {
-                    eprintln!("TLS Handshake failed: {:?}", err);
+                    crate::logger::error(format!("TLS Handshake failed: {:?}", err));
                 }
                 Err(_elapsed) => { /* Handshake killed silently after timeout */ }
             }

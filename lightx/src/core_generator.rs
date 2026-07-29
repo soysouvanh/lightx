@@ -365,32 +365,35 @@ impl CoreGenerator {
         code.push_str("}\n\n");
 
         // SUPERTEST MOCKING API
-        code.push_str("impl lightx::ext::tower::Service<lightx::ext::hyper::Request<String>> for AppRouter {\n");
-        code.push_str("    type Response = lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>;\n");
-        code.push_str("    type Error = std::convert::Infallible;\n");
-        code.push_str("    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;\n");
-        code.push_str("    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {\n");
-        code.push_str("        std::task::Poll::Ready(Ok(()))\n");
-        code.push_str("    }\n");
-        code.push_str(
-            "    fn call(&mut self, req: lightx::ext::hyper::Request<String>) -> Self::Future {\n",
-        );
-        code.push_str("        use lightx::server::{Router, ContextFactory};\n");
-        code.push_str("        let factory = self.factory.clone();\n");
-        code.push_str("        let router = std::sync::Arc::new(self.clone());\n");
-        code.push_str("        Box::pin(async move {\n");
-        code.push_str("            let (parts, body) = req.into_parts();\n");
-        code.push_str("            let raw_bytes = lightx::ext::bytes::Bytes::from(body);\n");
-        code.push_str("            let peer_ip = \"127.0.0.1\".parse().unwrap();\n");
-        code.push_str("            let mut ctx = factory.create_context(peer_ip, parts.headers.clone(), raw_bytes, None);\n");
-        code.push_str("            let response = match router.route(parts.method.as_str(), parts.uri.path(), &mut ctx).await {\n");
-        code.push_str("                Ok(resp) => { let _ = factory.commit_context(&mut ctx).await; resp },\n");
-        code.push_str("                Err(e) => lightx::ext::hyper::Response::builder().status(500).body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(format!(r#\"{{\"error\":\"Mock Route Error: {}\"}}\"#, e))), |ei| Box::new(ei) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap(),\n");
-        code.push_str("            };\n");
-        code.push_str("            Ok(response)\n");
-        code.push_str("        })\n");
-        code.push_str("    }\n");
-        code.push_str("}\n");
+        #[cfg(feature = "testing")]
+        {
+            code.push_str("impl lightx::ext::tower::Service<lightx::ext::hyper::Request<String>> for AppRouter {\n");
+            code.push_str("    type Response = lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>;\n");
+            code.push_str("    type Error = std::convert::Infallible;\n");
+            code.push_str("    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;\n");
+            code.push_str("    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {\n");
+            code.push_str("        std::task::Poll::Ready(Ok(()))\n");
+            code.push_str("    }\n");
+            code.push_str(
+                "    fn call(&mut self, req: lightx::ext::hyper::Request<String>) -> Self::Future {\n",
+            );
+            code.push_str("        use lightx::server::{Router, ContextFactory};\n");
+            code.push_str("        let factory = self.factory.clone();\n");
+            code.push_str("        let router = std::sync::Arc::new(self.clone());\n");
+            code.push_str("        Box::pin(async move {\n");
+            code.push_str("            let (parts, body) = req.into_parts();\n");
+            code.push_str("            let raw_bytes = lightx::ext::bytes::Bytes::from(body);\n");
+            code.push_str("            let peer_ip = \"127.0.0.1\".parse().unwrap();\n");
+            code.push_str("            let mut ctx = factory.create_context(peer_ip, parts.headers.clone(), raw_bytes, None);\n");
+            code.push_str("            let response = match router.route(parts.method.as_str(), parts.uri.path(), &mut ctx).await {\n");
+            code.push_str("                Ok(resp) => { let _ = factory.commit_context(&mut ctx).await; resp },\n");
+            code.push_str("                Err(e) => lightx::ext::hyper::Response::builder().status(500).body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(format!(r#\"{{\"error\":\"Mock Route Error: {}\"}}\"#, e))), |ei| Box::new(ei) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap(),\n");
+            code.push_str("            };\n");
+            code.push_str("            Ok(response)\n");
+            code.push_str("        })\n");
+            code.push_str("    }\n");
+            code.push_str("}\n");
+        }
 
         fs::write(dest_path, code)?;
         println!(

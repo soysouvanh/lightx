@@ -70,11 +70,6 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
     // Fail-fast : Vérification immédiate et synchrone des permissions
     fs::create_dir_all(&root)?;
 
-    // Test d'écriture pour garantir les droits
-    let test_file = root.join(".lightx_write_test");
-    fs::File::create(&test_file)?;
-    let _ = fs::remove_file(test_file);
-
     // Le Thread O(1) de journalisation
     thread::spawn(move || {
         while let Ok(log_msg) = rx.recv() {
