@@ -4,7 +4,7 @@ members = [
     "lightx-cli",
     "lightx-test",
     "lightx-macro",
-    "examples/*",
+    "lightx-examples/*",
     "lightx-benchmark",
 ]
 resolver = "2"

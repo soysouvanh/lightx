@@ -40,8 +40,8 @@ const CONNECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5
 /// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
-/// struct MockRouter;
-/// impl Router for MockRouter {
+/// struct AppRouter;
+/// impl Router for AppRouter {
 ///     type Context = ();
 ///     fn route<'a>(
 ///         &'a self,
@@ -50,7 +50,7 @@ const CONNECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5
 ///         ctx: &'a mut Self::Context,
 ///     ) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
 ///         Box::pin(async {
-///             Ok(Response::new(Full::new(Bytes::from(r#"{"status":"mocked"}"#)).map_err(|e| match e {}).boxed()))
+///             Ok(Response::new(Full::new(Bytes::from(r#"{"status":"ok"}"#)).map_err(|e| match e {}).boxed()))
 ///         })
 ///     }
 /// }
@@ -276,16 +276,16 @@ async fn handle_request<C: Send + 'static>(
 /// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
-/// struct DummyRouter;
-/// impl Router for DummyRouter {
+/// struct AppRouter;
+/// impl Router for AppRouter {
 ///     type Context = ();
 ///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
 ///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
-/// struct DummyFactory;
-/// impl ContextFactory for DummyFactory {
+/// struct AppFactory;
+/// impl ContextFactory for AppFactory {
 ///     type Context = ();
 ///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
@@ -295,8 +295,8 @@ async fn handle_request<C: Send + 'static>(
 /// }
 ///
 /// async fn init_server() {
-///     let factory = Arc::new(DummyFactory);
-///     let router = Arc::new(DummyRouter);
+///     let factory = Arc::new(AppFactory);
+///     let router = Arc::new(AppRouter);
 ///     let ip: std::net::IpAddr = "127.0.0.1".parse().unwrap();
 ///     let service = build_tower_service(factory, router, ip);
 /// }
@@ -421,16 +421,16 @@ fn not_found() -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Syn
 /// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
-/// struct DummyRouter;
-/// impl Router for DummyRouter {
+/// struct AppRouter;
+/// impl Router for AppRouter {
 ///     type Context = ();
 ///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
 ///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
-/// struct DummyFactory;
-/// impl ContextFactory for DummyFactory {
+/// struct AppFactory;
+/// impl ContextFactory for AppFactory {
 ///     type Context = ();
 ///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
@@ -441,7 +441,7 @@ fn not_found() -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Syn
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     // listen("127.0.0.1:8080".parse().unwrap(), Arc::new(DummyFactory), Arc::new(DummyRouter)).await.unwrap();
+///     // listen("127.0.0.1:8080".parse().unwrap(), Arc::new(AppFactory), Arc::new(AppRouter)).await.unwrap();
 /// }
 /// ```
 type BoxedTask = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
@@ -527,16 +527,16 @@ pub async fn listen<C: Send + 'static>(
 /// use http_body_util::{Full, combinators::BoxBody, BodyExt};
 /// use hyper::Response;
 ///
-/// struct DummyRouter;
-/// impl Router for DummyRouter {
+/// struct AppRouter;
+/// impl Router for AppRouter {
 ///     type Context = ();
 ///     fn route<'a>(&'a self, method: &'a str, uri: &'a str, ctx: &'a mut Self::Context) -> Pin<Box<dyn Future<Output = Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, AppError>> + Send + 'a>> {
 ///         Box::pin(async { Ok(Response::new(Full::new(Bytes::new()).map_err(|e| match e {}).boxed())) })
 ///     }
 /// }
 ///
-/// struct DummyFactory;
-/// impl ContextFactory for DummyFactory {
+/// struct AppFactory;
+/// impl ContextFactory for AppFactory {
 ///     type Context = ();
 ///     fn create_context(&self, _peer: std::net::IpAddr, _map: hyper::HeaderMap, _body: Bytes, _req: Option<hyper::Request<hyper::body::Incoming>>) -> () { () }
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
@@ -547,7 +547,7 @@ pub async fn listen<C: Send + 'static>(
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     // listen_tls(addr, Arc::new(DummyFactory), Arc::new(DummyRouter), "cert.pem", "key.pem").await.unwrap();
+///     // listen_tls(addr, Arc::new(AppFactory), Arc::new(AppRouter), "cert.pem", "key.pem").await.unwrap();
 /// }
 /// ```
 pub async fn listen_tls<C: Send + 'static>(
