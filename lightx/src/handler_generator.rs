@@ -265,6 +265,8 @@ impl HandlerGenerator {
                             enum_values: col_override.enum_values,
                             is_primary_key: daox::Property::Simple(false),
                             is_auto_increment: daox::Property::Simple(false),
+                            is_unique: daox::Property::Simple(false),
+                            is_index: daox::Property::Simple(false),
                             business_rules: col_override.business_rules.unwrap_or_default(),
                         }
                     } else {

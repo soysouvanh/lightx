@@ -1,0 +1,8 @@
+[type]
+value = "String"
+
+[is_optional]
+value = false
+
+[format]
+value = "^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$"

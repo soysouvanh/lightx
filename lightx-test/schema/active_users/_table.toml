@@ -1,1 +1,2 @@
 database = "default"
+is_view = true

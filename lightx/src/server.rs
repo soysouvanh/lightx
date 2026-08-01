@@ -70,10 +70,6 @@ pub trait ContextFactory: Send + Sync + 'static {
         &'a self,
         ctx: &'a mut Self::Context,
     ) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>>;
-
-    /// Returns `true` if the IP address is banned from accessing the hyper pipeline.
-    /// Defends the architecture before ANY memory allocation.
-    fn is_ip_blocked(&self, client_ip: &std::net::IpAddr) -> bool;
 }
 
 pub trait Router: Send + Sync + 'static {
@@ -106,14 +102,6 @@ async fn handle_request<C: Send + 'static>(
     peer_addr: std::net::IpAddr,
 ) -> Result<Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>, Infallible>
 {
-    // 0. DDOS IP Blocklist Filter Layer
-    // Rejects illegitimate IPs unconditionally in O(1) based on dynamically applied firewall rules.
-    if factory.is_ip_blocked(&peer_addr) {
-        return Ok(build_response(
-            StatusCode::FORBIDDEN,
-            "{\"code\":403,\"error\":\"IP Blocked by Firewall\"}",
-        ));
-    }
     let is_ws = {
         let has_upgrade = req
             .headers()
@@ -291,7 +279,6 @@ async fn handle_request<C: Send + 'static>(
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
-///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// async fn init_server() {
@@ -436,7 +423,6 @@ fn not_found() -> Response<BoxBody<Bytes, Box<dyn std::error::Error + Send + Syn
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
-///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// #[tokio::main]
@@ -542,7 +528,6 @@ pub async fn listen<C: Send + 'static>(
 ///     fn commit_context<'a>(&'a self, _ctx: &'a mut ()) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send + 'a>> {
 ///         Box::pin(async { Ok(()) })
 ///     }
-///     fn is_ip_blocked(&self, _client_ip: &std::net::IpAddr) -> bool { false }
 /// }
 ///
 /// #[tokio::main]

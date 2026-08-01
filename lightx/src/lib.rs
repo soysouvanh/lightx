@@ -24,8 +24,6 @@ pub mod core_generator;
 pub mod handler_generator;
 pub mod logger;
 pub mod server;
-#[cfg(feature = "testing")]
-pub mod test;
 
 /// Extensions re-exported for the generated code.
 /// Only production-necessary crates are exposed.

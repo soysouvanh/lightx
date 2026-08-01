@@ -42,7 +42,23 @@ impl UserBo {
         lightx::ext::hyper::Response<lightx::ext::http_body_util::Full<lightx::ext::bytes::Bytes>>,
         AppError,
     > {
-        // 1. Instanciation du modèle utilisateur
+        // 1. Vérification de l'unicité via l'index généré par Daox
+        let email_exists = if let Some(tx) = ctx.mysql_tx.as_mut() {
+            Users::exists_by_email(&mut **tx, &payload.email).await
+        } else {
+            Users::exists_by_email(&ctx.mysql_pool, &payload.email).await
+        }
+        .map_err(|e| AppError::DatabaseError {
+            msg: e.to_string(),
+            file: file!(),
+            line: line!(),
+        })?;
+
+        if email_exists {
+            lightx::bail_business_rule!("email", "Cet email est déjà utilisé.");
+        }
+
+        // 2. Instanciation du modèle utilisateur
         let new_user = Users {
             id: 0, // Ignoré par l'insert car auto_increment
             email: payload.email.clone(),
@@ -52,8 +68,17 @@ impl UserBo {
             created_at: None, // Géré par CURRENT_TIMESTAMP en base
         };
 
-        // 2. Première écriture (Déclenche le BEGIN TRANSACTION de manière transparente)
-        let new_user_id = new_user.insert(ctx).await?;
+        // 3. Première écriture (Déclenche le BEGIN TRANSACTION de manière transparente)
+        let new_user_id = if let Some(tx) = ctx.mysql_tx.as_mut() {
+            new_user.insert(&mut **tx).await
+        } else {
+            new_user.insert(&ctx.mysql_pool).await
+        }
+        .map_err(|e| AppError::DatabaseError {
+            msg: e.to_string(),
+            file: file!(),
+            line: line!(),
+        })?;
 
         // 3. Instanciation de la table de liaison (UserRoles)
         let admin_role = UserRoles {
@@ -63,7 +88,16 @@ impl UserBo {
         };
 
         // 4. Seconde écriture (Participe à la MÊME transaction via RequestContext)
-        admin_role.insert(ctx).await?;
+        if let Some(tx) = ctx.mysql_tx.as_mut() {
+            admin_role.insert(&mut **tx).await
+        } else {
+            admin_role.insert(&ctx.mysql_pool).await
+        }
+        .map_err(|e| AppError::DatabaseError {
+            msg: e.to_string(),
+            file: file!(),
+            line: line!(),
+        })?;
 
         let json = format!("{{\"user_id\":{}}}", new_user_id);
 

@@ -1,0 +1,2 @@
+[pipeline]
+processings = ["postgres::db_demo_bo::DbDemoBo::execute"]

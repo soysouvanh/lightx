@@ -1,0 +1,6 @@
+[pipeline]
+processings = ["health::execute_check"]
+
+[health_check]
+route = "GET /api/v1/health"
+schema = []

@@ -1,0 +1,11 @@
+[sqlite]
+connection_string_env = "SQLITE_DATABASE_URL"
+dialect = "sqlite"
+
+[mysql]
+connection_string_env = "MYSQL_DATABASE_URL"
+dialect = "mysql"
+
+[postgres]
+connection_string_env = "POSTGRES_DATABASE_URL"
+dialect = "postgres"

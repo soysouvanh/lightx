@@ -1,0 +1,27 @@
+[package]
+name = "lightx-web"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+lightx = { path = "../lightx" }
+tmplx = { path = "../../tmplx-workspace/tmplx" }
+tokio = { version = "1.37.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite"] }
+dotenvy = "0.15"
+futures = "0.3.33"
+
+[build-dependencies]
+daox = { version = "0.2.5", path = "../../daox-workspace/daox", default-features = false, features = [
+    "sqlite",
+] }
+lightx = { path = "../lightx" }
+tokio = { version = "1.37.0", features = ["full"] }
+dotenvy = "0.15"
+
+[dev-dependencies]
+lightx-macro = { path = "../lightx-macro" }

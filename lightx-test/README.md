@@ -16,6 +16,8 @@ _We highly recommend clicking into each directory to read their dedicated, begin
 - **`handlers/`** : The HTTP logic. You write `TOML` files here to declare your API endpoints, which LightX translates into blazing-fast native Rust routers.
 - **`i18n/`** : The languages. Maps all system errors (like "String too short") into standardized JSON for your beautiful frontend.
 - **`log/`** : The black box. Where LightX silently records backend crashes to keep your server "Panic-Free".
+- **`fuzz/`** : The chaos testing grounds. Here developers deploy `cargo-fuzz` to aggressively assault the Framework's networking decoders with randomized bytes, providing absolute stability metrics.
+- **`src/supertest.rs`** : A completely isolated Mocking Engine generating mathematical HTTP `tower::Service` configurations. It allows strictly simulating integration flows in O(1) natively, without wasting resources deploying TCP Sockets.
 
 ---
 
@@ -67,17 +69,30 @@ LightX uses your live database as the Single Source of Truth.
    cargo run -p lightx-cli -- migrate
    ```
 
-## Step 2: Environment Configuration
+## Step 2: Environment Configuration (The Databases)
 
-For LightX to introspect your database, it needs your credentials.
-Create a `.env` file at the root of `lightx-test` (or modify the provided `.env.example`):
+For LightX to introspect your network and generate its AOP pools, it purely reads your credentials.
+Create a `.env` file at the root of `lightx-test` (or modify the `.env.example`).
+
+LightX reads any variable ending with `_URL` or `_DATABASE_URL`, interprets its dialect (MySQL, Postgres, SQLite), and injects a typed Database Pool straight into your Business Object `RequestContext`.
+
+### Single Database Mode
 
 ```env
+# By default, DATABASE_URL falls back to its dialect's name (e.g. generating `ctx.mysql_pool`)
 DATABASE_URL=mysql://root:password@localhost:3306/lightx_test
 LIGHTX_LOG_DIR=./log
 ```
 
-_( Remember to replace `root` and `password` with your actual MySQL credentials)._
+### Multi-Database Mode (Microservice ready)
+
+```env
+# Easily mix different architectures. LightX will automatically generate `ctx.users_pool` (MySqlPool) and `ctx.analytics_pool` (PgPool).
+USERS_DATABASE_URL=mysql://root:password@localhost:3306/users_db
+ANALYTICS_DATABASE_URL=postgres://postgres:password@localhost:5432/telemetry_db
+```
+
+_( Remember to replace `root` and `password` with your actual Database credentials)._
 
 ---
 

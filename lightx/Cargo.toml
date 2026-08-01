@@ -10,21 +10,20 @@ license.workspace = true
 repository.workspace = true
 keywords = ["framework", "web", "router", "database", "zero-overhead"]
 categories = ["web-programming", "development-tools"]
-exclude = ["fuzz/"]
 
 [features]
 default = ["mysql"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
 sqlite = ["sqlx/sqlite"]
-testing = []
+
 
 [dependencies]
-daox = { path = "../../daox-workspace/daox", version = "0.2.0" }
-tmplx = { path = "../../tmplx-workspace/tmplx", version = "0.2.0" }
+daox = { path = "../../daox-workspace/daox", version = "0.2.5" }
+tmplx = { path = "../../tmplx-workspace/tmplx", version = "0.2.1" }
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
-sqlx = { version = "0.8", features = [
+toml = "0.8.23"
+sqlx = { version = "0.9", features = [
     "runtime-tokio",
     "tls-rustls",
     "chrono",
@@ -45,7 +44,7 @@ http-body-util = "0.1"
 http = "1.1"
 bytes = "1"
 serde_json = "1.0"
-rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring"] }
 tokio-rustls = { version = "0.26", default-features = false, features = [
     "ring",
 ] }
@@ -53,7 +52,7 @@ rustls-pemfile = "2.1"
 chrono = "0.4"
 regex = "1.10"
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = [
+tower-http = { version = "0.7", features = [
     "cors",
     "trace",
     "compression-full",
@@ -62,7 +61,7 @@ tower-http = { version = "0.6", features = [
 ] }
 moka = { version = "0.12.15", features = ["sync"] }
 jsonwebtoken = "11.0.0"
-matchit = "0.7.3"
+matchit = "0.9.2"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 tracing-opentelemetry = "0.33.0"
@@ -74,7 +73,7 @@ hyper-tungstenite = "0.30.0"
 tokio-tungstenite = "0.30.0"
 futures-util = "0.3.33"
 tokio-util = { version = "0.7", features = ["io"] }
-sha2 = "0.10.8"
+sha2 = "0.11"
 
 [package.metadata.docs.rs]
 all-features = true

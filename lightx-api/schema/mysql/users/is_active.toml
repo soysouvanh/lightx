@@ -1,0 +1,5 @@
+[type]
+value = "bool"
+
+[is_optional]
+value = false

@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 clap = { version = "4.6.4", features = ["derive"] }
 tokio = { version = "1.37", features = ["full"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "mysql", "migrate"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "mysql", "migrate"] }
 dotenvy = "0.15"
-daox = { version = "0.2.0", path = "../../daox-workspace/daox" }
+daox = { version = "0.2.5", path = "../../daox-workspace/daox" }
+futures = "0.3.33"

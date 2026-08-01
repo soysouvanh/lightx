@@ -56,6 +56,24 @@ As you browse the source code in `src/`, you'll notice a strict architectural ru
 
 If a user sends completely broken data, or a database connection stutters, the LightX engine is designed to elegantly catch the fault and convert it into a beautiful, standardized JSON error message for the Frontend. It will never crash the server.
 
+## The "Zero-Test" Purity Architecture
+
+LightX refuses to pollute your production binary. We architecturally enforce a strict separation of concerns:
+
+- **Zero test code overhead**: All Mocking libraries (`SuperTest`), endpoint stubbings, and even intensive network Fuzz Testing modules are explicitly banished from the Core Engine. Your production artifact guarantees mathematical purity.
+- **Dynamic Context Pools**: LightX's `RequestContext` is completely autonomously compiled. It extracts your database pool dependencies on-the-fly purely from your `.env` (yielding structures like `ctx.analytics_pool`). Unused database dialects are completely stripped out to conserve ultra-low memory footprints and ensure structural irreproachability.
+
+### How to configure connections (The `.env` strategy)
+
+LightX reads your `.env` file during macro compilation (`cargo build`). Any variable ending in `_URL` or `_DATABASE_URL` automatically spins up a production-ready asynchronous connection pool.
+
+- **The Naming**: If you declare `USERS_DATABASE_URL=...`, LightX generates the exact field `ctx.users_pool`.
+- **The Dialect**: The structural type is strictly inferred from the string prefix:
+  - `sqlite:...` generates `sqlx::SqlitePool`
+  - `mysql://...` generates `sqlx::MySqlPool`
+  - `postgres://...` generates `sqlx::PgPool`
+- **Backward Compatibility**: Using precisely `DATABASE_URL=mysql://...` acts as your default layer and safely yields `ctx.mysql_pool`.
+
 ## Installation (If building a new project)
 
 If you are starting a completely new project from scratch, simply add LightX as a dependency in your `Cargo.toml`:

@@ -1,0 +1,2 @@
+[pipeline]
+processings = ["mysql::db_demo_bo::DbDemoBo::execute"]

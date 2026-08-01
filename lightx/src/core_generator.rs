@@ -133,6 +133,134 @@ impl CoreGenerator {
             "// Single Source of Truth: Convention over Configuration (Handlers directory)\n\n",
         );
 
+        let mut dbs: Vec<(String, String, String)> = Vec::new();
+        for (key, val) in std::env::vars() {
+            if !key.ends_with("URL") {
+                continue;
+            }
+            let dialect = if val.starts_with("sqlite") {
+                "sqlite"
+            } else if val.starts_with("mysql") || val.starts_with("mariadb") {
+                "mysql"
+            } else if val.starts_with("postgres") {
+                "postgres"
+            } else {
+                continue;
+            };
+
+            let lower = key.to_lowercase();
+            let prefix = lower.replace("_database_url", "").replace("_url", "");
+            let pool_name = if prefix.is_empty() || prefix == "database" || prefix == dialect {
+                format!("{}_pool", dialect)
+            } else {
+                format!("{}_pool", prefix)
+            };
+            dbs.push((key, pool_name, dialect.to_string()));
+        }
+        dbs.sort_by(|a, b| a.1.cmp(&b.1));
+
+        let mut req_ctx_fields = String::new();
+        let mut factory_fields = String::new();
+        let mut factory_new_impl = String::new();
+        let mut factory_init = String::new();
+        let mut create_ctx_fields = String::new();
+        let mut commit_ctx_impl = String::new();
+
+        for (env_var, pool_name, dialect) in &dbs {
+            let tx_name = pool_name.replace("_pool", "_tx");
+            let (pool_type, tx_type, opt_type) = match dialect.as_str() {
+                "sqlite" => (
+                    "sqlx::SqlitePool",
+                    "sqlx::Sqlite",
+                    "sqlx::sqlite::SqlitePoolOptions",
+                ),
+                "mysql" => (
+                    "sqlx::MySqlPool",
+                    "sqlx::MySql",
+                    "sqlx::mysql::MySqlPoolOptions",
+                ),
+                "postgres" => (
+                    "sqlx::PgPool",
+                    "sqlx::Postgres",
+                    "sqlx::postgres::PgPoolOptions",
+                ),
+                _ => unreachable!(),
+            };
+
+            req_ctx_fields.push_str(&format!("    pub {}: {},\n", pool_name, pool_type));
+            req_ctx_fields.push_str(&format!(
+                "    pub {}: Option<sqlx::Transaction<'static, {}>>,\n",
+                tx_name, tx_type
+            ));
+            factory_fields.push_str(&format!("    pub {}: {},\n", pool_name, pool_type));
+            factory_new_impl.push_str(&format!("        let url_{} = std::env::var(\"{}\").map_err(|_| lightx::core::AppError::SystemError {{ msg: \"Missing config {}\".to_string(), file: file!(), line: line!() }})?;\n", pool_name, env_var, env_var));
+            factory_new_impl.push_str(&format!("        let {} = {}::new().connect_lazy(&url_{}).map_err(|e| lightx::core::AppError::SystemError {{ msg: e.to_string(), file: file!(), line: line!() }})?;\n", pool_name, opt_type, pool_name));
+            factory_init.push_str(&format!("            {},\n", pool_name));
+            create_ctx_fields.push_str(&format!(
+                "            {}: self.{}.clone(),\n",
+                pool_name, pool_name
+            ));
+            create_ctx_fields.push_str(&format!("            {}: None,\n", tx_name));
+            commit_ctx_impl.push_str(&format!("            if let Some(tx) = ctx.{}.take() {{ tx.commit().await.map_err(|e| e.to_string())?; }}\n", tx_name));
+        }
+
+        code.push_str(&format!(r#"
+pub struct RequestContext {{
+    pub raw_body: lightx::ext::bytes::Bytes,
+    pub global_state: std::sync::Arc<lightx::ext::tokio::sync::broadcast::Sender<lightx::ext::bytes::Bytes>>,
+    pub rate_limiter: std::sync::Arc<lightx::ext::moka::sync::Cache<(std::net::IpAddr, &'static str), std::sync::Arc<std::sync::atomic::AtomicU32>>>,
+    pub response_cache: std::sync::Arc<lightx::ext::moka::sync::Cache<String, (lightx::ext::hyper::StatusCode, lightx::ext::hyper::HeaderMap, lightx::ext::bytes::Bytes, std::time::Instant)>>,
+    pub client_ip: std::net::IpAddr,
+    pub user_id: std::option::Option<String>,
+    pub headers: lightx::ext::hyper::HeaderMap,
+    pub raw_req: Option<lightx::ext::hyper::Request<lightx::ext::hyper::body::Incoming>>,
+{}
+}}
+
+pub struct AppContextFactory {{
+    pub global_state: std::sync::Arc<lightx::ext::tokio::sync::broadcast::Sender<lightx::ext::bytes::Bytes>>,
+    pub rate_limiter: std::sync::Arc<lightx::ext::moka::sync::Cache<(std::net::IpAddr, &'static str), std::sync::Arc<std::sync::atomic::AtomicU32>>>,
+    pub response_cache: std::sync::Arc<lightx::ext::moka::sync::Cache<String, (lightx::ext::hyper::StatusCode, lightx::ext::hyper::HeaderMap, lightx::ext::bytes::Bytes, std::time::Instant)>>,
+{}
+}}
+
+impl AppContextFactory {{
+    pub async fn new() -> Result<Self, lightx::core::AppError> {{
+{}
+        Ok(Self {{
+            global_state: std::sync::Arc::new(lightx::ext::tokio::sync::broadcast::channel(1024).0),
+            rate_limiter: std::sync::Arc::new(lightx::ext::moka::sync::Cache::builder().build()),
+            response_cache: std::sync::Arc::new(lightx::ext::moka::sync::Cache::builder().build()),
+{}
+        }})
+    }}
+}}
+
+impl lightx::server::ContextFactory for AppContextFactory {{
+    type Context = RequestContext;
+    fn create_context(&self, peer_addr: std::net::IpAddr, headers: lightx::ext::hyper::HeaderMap, raw_body: lightx::ext::bytes::Bytes, raw_req: Option<lightx::ext::hyper::Request<lightx::ext::hyper::body::Incoming>>) -> Self::Context {{
+        RequestContext {{
+            raw_body,
+            global_state: self.global_state.clone(),
+            rate_limiter: self.rate_limiter.clone(),
+            response_cache: self.response_cache.clone(),
+            client_ip: peer_addr,
+            user_id: None,
+            headers,
+            raw_req,
+{}
+        }}
+    }}
+
+    fn commit_context<'a>(&'a self, ctx: &'a mut Self::Context) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {{
+        Box::pin(async move {{
+{}
+            Ok(())
+        }})
+    }}
+}}
+"#, req_ctx_fields, factory_fields, factory_new_impl, factory_init, create_ctx_fields, commit_ctx_impl));
+
         code.push_str("/// Retrieves system log translations with zero overhead.\n");
         code.push_str("pub fn get_system_log(key: &str, lang: &str) -> &'static str {\n");
         code.push_str("    match (key, lang) {\n");
@@ -274,9 +402,8 @@ impl CoreGenerator {
                                     .replace("\\", "/");
 
                                 use sha2::Digest;
-                                let mut file = fs::File::open(&current_path).unwrap();
                                 let mut hasher = sha2::Sha256::new();
-                                std::io::copy(&mut file, &mut hasher).unwrap();
+                                hasher.update(fs::read(&current_path).unwrap());
                                 let mut hex_hash = String::new();
                                 for b in hasher.finalize() {
                                     hex_hash.push_str(&format!("{:02x}", b));
@@ -363,37 +490,6 @@ impl CoreGenerator {
         code.push_str("        Box::pin(route_request(method, uri, ctx))\n");
         code.push_str("    }\n");
         code.push_str("}\n\n");
-
-        // SUPERTEST MOCKING API
-        #[cfg(feature = "testing")]
-        {
-            code.push_str("impl lightx::ext::tower::Service<lightx::ext::hyper::Request<String>> for AppRouter {\n");
-            code.push_str("    type Response = lightx::ext::hyper::Response<lightx::ext::http_body_util::combinators::BoxBody<lightx::ext::bytes::Bytes, Box<dyn std::error::Error + Send + Sync + 'static>>>;\n");
-            code.push_str("    type Error = std::convert::Infallible;\n");
-            code.push_str("    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send + 'static>>;\n");
-            code.push_str("    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {\n");
-            code.push_str("        std::task::Poll::Ready(Ok(()))\n");
-            code.push_str("    }\n");
-            code.push_str(
-                "    fn call(&mut self, req: lightx::ext::hyper::Request<String>) -> Self::Future {\n",
-            );
-            code.push_str("        use lightx::server::{Router, ContextFactory};\n");
-            code.push_str("        let factory = self.factory.clone();\n");
-            code.push_str("        let router = std::sync::Arc::new(self.clone());\n");
-            code.push_str("        Box::pin(async move {\n");
-            code.push_str("            let (parts, body) = req.into_parts();\n");
-            code.push_str("            let raw_bytes = lightx::ext::bytes::Bytes::from(body);\n");
-            code.push_str("            let peer_ip = \"127.0.0.1\".parse().unwrap();\n");
-            code.push_str("            let mut ctx = factory.create_context(peer_ip, parts.headers.clone(), raw_bytes, None);\n");
-            code.push_str("            let response = match router.route(parts.method.as_str(), parts.uri.path(), &mut ctx).await {\n");
-            code.push_str("                Ok(resp) => { let _ = factory.commit_context(&mut ctx).await; resp },\n");
-            code.push_str("                Err(e) => lightx::ext::hyper::Response::builder().status(500).body(lightx::ext::http_body_util::BodyExt::boxed(lightx::ext::http_body_util::BodyExt::map_err(lightx::ext::http_body_util::Full::new(lightx::ext::bytes::Bytes::from(format!(r#\"{{\"error\":\"Mock Route Error: {}\"}}\"#, e))), |ei| Box::new(ei) as Box<dyn std::error::Error + Send + Sync + 'static>))).unwrap(),\n");
-            code.push_str("            };\n");
-            code.push_str("            Ok(response)\n");
-            code.push_str("        })\n");
-            code.push_str("    }\n");
-            code.push_str("}\n");
-        }
 
         fs::write(dest_path, code)?;
         println!(

@@ -1,0 +1,8 @@
+[type]
+value = "String"
+
+[is_optional]
+value = false
+
+[max_length]
+value = 50

@@ -33,6 +33,12 @@ message = "schema.format.message"
 [is_primary_key]
 value = true
 
+[is_unique]
+value = false
+
+[is_index]
+value = false
+
 [is_auto_increment]
 value = true
 

@@ -56,6 +56,24 @@ Si vous parcourez le code source dans `src/`, vous remarquerez une règle archit
 
 Si un utilisateur envoie des données totalement corrompues, ou que la base de données vacille, le moteur LightX est conçu pour étouffer le crash et le métamorphoser gracieusement en un joli message d'erreur JSON standardisé pour le Frontend. Le serveur ne plantera jamais.
 
+## L'Architecture "Zéro Superflus" (Pureté de Production)
+
+LightX refuse formellement de polluer vos serveurs. Nous offrons une stricte isolation des comportements :
+
+- **Zéro Code de Test en Production**: Absolument tous les modules de Mocking (`SuperTest`), les stubs d'API, et les dossiers d'acharnement réseaux (Fuzz Testing) sont bannis et isolés de force hors du moteur natif. Votre exécutable de production garantit une pureté absolue et mathématique.
+- **Context Factory Dynamique**: Les pools de connexions de LightX sont compilés à la volée ! L'Aiguilleur déduit et forge instantanément les pools nécessaires (ex: `ctx.analytics_pool`) scrupuleusement depuis vos variables `.env`. Les dialectes de base de données non sollicités sont totalement évincés de la compilation pour protéger la mémoire.
+
+### Comment renseigner vos bases de données (Stratégie `.env`)
+
+LightX analyse votre fichier `.env` au moment de la compilation (`cargo build`). Toute variable se terminant par `_URL` ou `_DATABASE_URL` entraîne la création automatique d'un pool de connexion fortement typé.
+
+- **Le Nommage** : Si vous déclarez `ANALYTICS_DATABASE_URL=...`, LightX vous génère clef en main le champ `ctx.analytics_pool`.
+- **Le Dialecte** : Le type SQLx est strictement déduit du préfixe de la chaine de connexion :
+  - `sqlite:...` génère une `sqlx::SqlitePool`
+  - `mysql://...` génère une `sqlx::MySqlPool`
+  - `postgres://...` génère une `sqlx::PgPool`
+- **Configuration Initiale** : Mettre explicitement `DATABASE_URL=mysql://...` fera office de source de vérité par défaut et génèrera `ctx.mysql_pool` afin de conserver une compatibilité absolue avec votre métier.
+
 ## Installation (Pour un nouveau projet)
 
 Si vous concevez une toute nouvelle application de zéro, il vous suffit d'importer LightX comme une simple dépendance dans votre `Cargo.toml` :

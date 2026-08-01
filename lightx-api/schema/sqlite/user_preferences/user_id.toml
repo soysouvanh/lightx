@@ -1,0 +1,11 @@
+[type]
+value = "i32"
+
+[is_optional]
+value = false
+
+[is_primary_key]
+value = true
+
+[is_auto_increment]
+value = false

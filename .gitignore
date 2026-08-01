@@ -35,6 +35,8 @@ perf.data
 *.sqlite3
 
 # Others
+repomix.config.json
+repomix-output.xml
 /spec/
 /assets/*.mmd
 

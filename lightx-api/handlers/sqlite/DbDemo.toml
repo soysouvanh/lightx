@@ -1,0 +1,2 @@
+[pipeline]
+processings = ["sqlite::db_demo_bo::DbDemoBo::execute"]

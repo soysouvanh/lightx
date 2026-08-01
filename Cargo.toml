@@ -4,13 +4,14 @@ members = [
     "lightx-cli",
     "lightx-test",
     "lightx-macro",
-    "lightx-examples/*",
     "lightx-benchmark",
+    "lightx-web",
+    "lightx-api",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Vincent SOYSOUVANH <vincent.soysouvanh@gmail.com>"]
 description = "LightX is a hyper-optimized, production-grade Rust macro-framework. It pioneers a strict Database-First approach and a Zero-Overhead philosophy."
