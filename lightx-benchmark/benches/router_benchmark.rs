@@ -17,7 +17,7 @@ pub fn axum_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let app = AxumRouter::<()>::new()
                 .route("/api/admin-creation/*rest", get(|| async { "Hello" }));
-            let _ = criterion::black_box(app);
+            let _ = std::hint::black_box(app);
         })
     });
 }
@@ -26,7 +26,7 @@ pub fn salvo_benchmark(c: &mut Criterion) {
     c.bench_function("salvo_router_build", |b| {
         b.iter(|| {
             let r = Router::with_path("/api/admin-creation/<**rest>").get(salvo_hello);
-            criterion::black_box(r);
+            std::hint::black_box(r);
         })
     });
 
@@ -36,7 +36,7 @@ pub fn salvo_benchmark(c: &mut Criterion) {
         b.iter(|| {
             // Internal path resolution bench is complex to mock without a full stream in Salvo,
             // so we benchmark the instantiation to stay close to the theoretical limit.
-            criterion::black_box(&mock_router);
+            std::hint::black_box(&mock_router);
         })
     });
 }
@@ -47,7 +47,7 @@ pub fn lightx_benchmark(c: &mut Criterion) {
             let mut r = MatchitRouter::new();
             r.insert("/api/admin-creation/*rest", 1u16).unwrap();
             r.insert("/swagger", 2u16).unwrap();
-            criterion::black_box(r);
+            std::hint::black_box(r);
         })
     });
 
@@ -58,7 +58,7 @@ pub fn lightx_benchmark(c: &mut Criterion) {
     c.bench_function("lightx_matchit_route_resolve", |b| {
         b.iter(|| {
             let matched = router.at("/api/admin-creation/test").unwrap();
-            criterion::black_box(matched.value);
+            std::hint::black_box(matched.value);
         })
     });
 }
