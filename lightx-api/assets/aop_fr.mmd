@@ -1,0 +1,34 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
+sequenceDiagram
+    autonumber
+    participant C as Navigateur / Client
+    participant R as Routeur AOP (Genere)
+    participant BO as Business Object (bo/*.rs)
+    participant DB as Base de Donnees
+    
+    C->>R: POST /users/create (Body JSON)
+    
+    rect rgb(240, 248, 255)
+    Note over R,DB: Execution Natif O(1) - LightX Framework
+    
+    R->>R: Deserialisation JSON & Validation Route
+    alt Erreur de Validation
+        R-->>C: HTTP 400 Bad Request
+    else JSON Valide
+        R->>+BO: Lancement logique metier execute()
+        Note over BO: Traitement Fonctionnel
+        BO->>DB: Insertion DAO (ex: insert)
+        
+        alt Probleme SQL ou Metier
+            DB-->>BO: SQLX Error (ex: Conflit)
+            BO-->>R: AppError::DatabaseError
+            R->>DB: ROLLBACK (Securite Transaction)
+            R-->>C: HTTP 500 JSON d'Erreur Structure
+        else Succes Total
+            DB-->>BO: Row ID / Succes
+            BO-->>-R: Object Response (Data JSON)
+            R->>DB: COMMIT Transactionnel !
+            R-->>C: HTTP 200 OK (Data JSON)
+        end
+    end
+    end

@@ -1,0 +1,34 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
+sequenceDiagram
+    autonumber
+    participant C as Browser / Client
+    participant R as AOP Router (Generated)
+    participant BO as Business Object (bo/*.rs)
+    participant DB as Database
+    
+    C->>R: POST /users/create (Body JSON)
+    
+    rect rgb(240, 248, 255)
+    Note over R,DB: Native Execution O(1) - LightX Framework
+    
+    R->>R: JSON Deserialization & Route Validation
+    alt Validation Error
+        R-->>C: HTTP 400 Bad Request
+    else Valid JSON
+        R->>+BO: Triggers functional logic execute()
+        Note over BO: Business Processing
+        BO->>DB: DAO Insertion (e.g. insert)
+        
+        alt SQL or Logic Error
+            DB-->>BO: SQLX Error (e.g. Conflict)
+            BO-->>R: AppError::DatabaseError
+            R->>DB: ROLLBACK (Transaction Security)
+            R-->>C: HTTP 500 Structured Error JSON
+        else Absolute Success
+            DB-->>BO: Row ID / Success
+            BO-->>-R: Object Response (Data JSON)
+            R->>DB: Transactional COMMIT !
+            R-->>C: HTTP 200 OK (Data JSON)
+        end
+    end
+    end

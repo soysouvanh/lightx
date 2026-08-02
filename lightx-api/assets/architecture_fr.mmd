@@ -1,0 +1,39 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
+graph TD
+    classDef file fill:#f9f9f9,stroke:#333,stroke-width:1px,color:#000;
+    classDef engine fill:#e2e8f0,stroke:#2b6cb0,stroke-width:2px,color:#2b6cb0,font-weight:bold;
+    classDef generated fill:#c6f6d5,stroke:#276749,stroke-width:1px,color:#1a202c;
+    classDef code fill:#feebc8,stroke:#c05621,stroke-width:2px,color:#7b341e,font-weight:bold;
+
+    subgraph Compilation [1. Phase de Compilation]
+        ENV[.env]:::file
+        DBTOML[schema/databases.toml]:::file
+        HANDLERS[handlers/*.toml]:::file
+        BUILD(build.rs - Moteur LightX):::engine
+        
+        ENV -->|Connexion| BUILD
+        DBTOML -.->|Introspection Live| BUILD
+        HANDLERS -->|Analyse AOP| BUILD
+    end
+
+    subgraph Generation [2. Generation de Code Natif]
+        DAO[OUT_DIR/daox_generated.rs]:::generated
+        ROUTES[OUT_DIR/lightx_handlers_generated.rs]:::generated
+        CORE[OUT_DIR/lightx_core_generated.rs]:::generated
+        
+        BUILD -->|Methodes SQLX| DAO
+        BUILD -->|Routeurs| ROUTES
+        BUILD -->|Registres| CORE
+    end
+
+    subgraph Execution [3. Runtime Application]
+        MAIN[src/main.rs]:::code
+        BO[src/bo/*.rs]:::code
+        
+        MAIN -->|Injection include!| DAO
+        MAIN -->|Injection include!| ROUTES
+        MAIN -->|Injection include!| CORE
+        
+        ROUTES -->|Execute| BO
+        BO -.->|Appel Natif| DAO
+    end

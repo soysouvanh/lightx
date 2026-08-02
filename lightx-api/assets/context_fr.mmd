@@ -1,0 +1,18 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'background': '#ffffff'}}}%%
+graph LR
+    classDef factory fill:#e2e8f0,stroke:#2b6cb0,stroke-width:2px,color:#2b6cb0;
+    classDef req fill:#c6f6d5,stroke:#276749,stroke-width:1px,color:#1a202c;
+    classDef bo fill:#feebc8,stroke:#c05621,stroke-width:2px,color:#7b341e;
+    
+    S((Serveur Start)) -->|Load .env| AF[AppContextFactory <br> Singleton Arc]:::factory
+    AF -->|Cree le Pool| PG[(Pool Postgres)]
+    AF -->|Cree le Pool| MY[(Pool MySQL)]
+    
+    C((Requete HTTP)) -->|Clone references| RC[RequestContext <br> Struct Temporaire]:::req
+    PG -.-> RC
+    MY -.-> RC
+    
+    RC -->|Fournit les pools| BO[Business Object]:::bo
+    BO -->|Fin Execute| D((Drop RAII Zero-Leak))
+    
+    RC -.-x|Suppression Immediate| D
