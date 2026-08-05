@@ -265,7 +265,7 @@
           const data = await response.json();
 
           if (response.ok || data.status === "success") {
-            showToast("🎉 Administrateur propulsé avec succès !", "success");
+            showToast(" Administrateur propulsé avec succès !", "success");
             form.reset();
           } else {
             // C'EST L'AXE 3 : Traitement O(1) de l'erreur Front

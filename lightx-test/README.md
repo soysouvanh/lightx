@@ -34,7 +34,7 @@ To kickstart your work with the Starter Kit, let's break down the magic of Light
 
 1. **The HTTP Request:** The client sends a `POST /api/users`.
 2. **The Router (Core) & Validation:** The high-speed router finds the exact path in `O(1)`. It immediately calls `check_parameters` to verify the payload (e.g., "is the email > 5 characters? formatted correctly?"). If invalid, it short-circuits and returns an `HTTP 400 JSON`. Nothing hits the DB.
-3. **The Handler (AOP):** Your payload is safely typed. The generated orchestrator executes your _Business Objects (BO)_ through a fail-fast validation phase, followed by a transaction processing phase.
+3. **The Handler (AOP):** Your payload is safely typed. The generated orchestrator executes your _Business Objects (BO)* through a fail-fast validation phase, followed by a transaction processing phase.
 4. **The BO (Business Object):** This is the only function YOU actually wrote in Rust. It securely pulls the purely typed and validated data from memory, applies your logic (e.g., business assertions), and calls the data objects.
 5. **The DAO:** If your BO needs DB interaction, the DAO _lazily_ opens a networking connection to the database and accesses via compile-time validated SQL queries.
 6. **The Response:** The framework automatically commits the SQL transaction, elegantly serializes the return data as an `HTTP 200 OK` (JSON or HTML response). If any cascade failure happened, a RAII destructor automatically manages the DB Rollback.
@@ -92,7 +92,7 @@ USERS_DATABASE_URL=mysql://root:password@localhost:3306/users_db
 ANALYTICS_DATABASE_URL=postgres://postgres:password@localhost:5432/telemetry_db
 ```
 
-_( Remember to replace `root` and `password` with your actual Database credentials)._
+> *( Remember to replace `root` and `password` with your actual Database credentials)._
 
 ---
 

@@ -32,7 +32,7 @@ Pour bien démarrer avec le Starter Kit, décomposons la magie de LightX lors de
 
 1. **La Requête HTTP :** Le client envoie un `POST /api/users`.
 2. **Le Router (Core) & Validation :** L'aiguilleur ultra-rapide trouve le bon chemin en `O(1)`. Il lance immédiatement `check_parameters` pour vérifier la charge utile (ex: "l'email fait-il plus de 5 caractères ? est-il bien formaté ?"). Si c'est invalide, il renvoie instantanément une erreur `HTTP 400 JSON`. Pas un seul appel n'est fait à la base de données.
-3. **Le Handler (AOP) :** Votre requête est saine. L'orchestrateur généré déroule l'exécution des _Business Objects (BO)_ via une phase de validation (Fail-Fast) puis une phase de traitement (transactionnelle).
+3. **Le Handler (AOP) :** Votre requête est saine. L'orchestrateur généré déroule l'exécution des _Business Objects (BO)* via une phase de validation (Fail-Fast) puis une phase de traitement (transactionnelle).
 4. **Le BO (Business Object) :** La seule fonction que VOUS avez écrite en Rust. Elle prend la donnée pure (et déjà typée en toute sécurité), applique votre algorithme métier (ex: vérification de solde métier), et sollicite au besoin la base locale.
 5. **Le DAO :** Si votre BO a besoin d'écrire en BDD, le DAO ouvre paresseusement (lazy load) la transaction réseau SQL et interroge la base via vos requêtes strictement vérifiées à la compilation.
 6. **La Réponse :** Le framework valide la transaction automatiquement, et sérialise de manière gracieuse les résultats dans un flux `HTTP 200 OK` (JSON ou HTML). S'il y a eu la moindre erreur native en cascade, le destructeur RAII gère le Rollback automatiquement en base.
@@ -77,7 +77,7 @@ DATABASE_URL=mysql://root:password@localhost:3306/lightx_test
 LIGHTX_LOG_DIR=./log
 ```
 
-_( N'oubliez pas de remplacer `root` et `password` par vos véritables identifiants de développement local)._
+> *( N'oubliez pas de remplacer `root` et `password` par vos véritables identifiants de développement local)._
 
 ---
 
