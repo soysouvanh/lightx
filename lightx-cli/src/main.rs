@@ -396,7 +396,7 @@ fn run_migrations() {
     });
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        println!("🔌 LightX Migrate: Connecting to database...");
+        println!(" LightX Migrate: Connecting to database...");
         let pool = match sqlx::mysql::MySqlPoolOptions::new().connect(&db_url).await {
             Ok(p) => p,
             Err(e) => {
@@ -411,14 +411,14 @@ fn run_migrations() {
             std::process::exit(1);
         }
 
-        println!("🚜 LightX Migrate: Executing pending migrations in 0(1)...");
+        println!(" LightX Migrate: Executing pending migrations in 0(1)...");
         match sqlx::migrate::Migrator::new(migrations_dir).await {
             Ok(migrator) => {
                 if let Err(e) = migrator.run(&pool).await {
                     eprintln!("Error: Migration execution failed: {}", e);
                     std::process::exit(1);
                 }
-                println!("✅ LightX Migrate: All migrations successfully applied.");
+                println!(" LightX Migrate: All migrations successfully applied.");
             }
             Err(e) => {
                 eprintln!(

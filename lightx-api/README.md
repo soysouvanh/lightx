@@ -18,7 +18,7 @@ To run this project, you need the foundational Rust programming tools.
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
-  _(⚠️ Crucial for beginners: Once the installation finishes, carefully restart your terminal or execute `source $HOME/.cargo/env` to activate the `cargo` command)._
+  > *( Crucial for beginners: Once the installation finishes, carefully restart your terminal or execute `source $HOME/.cargo/env` to activate the `cargo` command)._
 
 ### Step 2: Prepare the databases
 
@@ -27,7 +27,7 @@ This demonstration project showcases LightX's power on 3 databases simultaneousl
 1. **SQLite**: Runs natively in standard RAM (`sqlite::memory:`). **No installation required!**
 2. **PostgreSQL & MySQL**: The server will seamlessly attempt to connect using the credentials present in the `.env` file (`localhost:5432` and `localhost:3306`).
 
-   👉 **The simplest solution (via Docker)**: If you possess Docker, you can instantly spin up and host both databases with the proper credentials using these two simple commands in your terminal:
+    **The simplest solution (via Docker)**: If you possess Docker, you can instantly spin up and host both databases with the proper credentials using these two simple commands in your terminal:
 
    ```bash
    # Start PostgreSQL
@@ -37,7 +37,7 @@ This demonstration project showcases LightX's power on 3 databases simultaneousl
    docker run --name lightx-mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=lightx_test -p 3306:3306 -d mysql
    ```
 
-   _(💡 If you do not have Docker installed, you can grab it from docker.com. Alternatively, if you already host your own local databases, simply update the `mysql://...` and `postgres://...` connection strings inside the `.env` file natively)_.
+   > *( If you do not have Docker installed, you can grab it from docker.com. Alternatively, if you already host your own local databases, simply update the `mysql://...` and `postgres://...` connection strings inside the `.env` file natively)*.
 
 ### Step 3: Start the LightX server
 
@@ -55,9 +55,9 @@ Now that Rust is correctly installed and the databases are ready, you can safely
    cargo run
    ```
 
-   > 💡 **What is happening here?** During this automated boot sequence, the framework scans your TOML models located in the `schema/` directory, deduces all necessary SQL queries (DAOs), orchestrates your routers (AOP), compiles everything into a binary, and finally boots a robust, secure asynchronous server on port `3000`.
+   >  **What is happening here?** During this automated boot sequence, the framework scans your TOML models located in the `schema/` directory, deduces all necessary SQL queries (DAOs), orchestrates your routers (AOP), compiles everything into a binary, and finally boots a robust, secure asynchronous server on port `3000`.
 
-   > ✅ You will know everything executed perfectly when you spot this message in your terminal: `Démarrage de LightX API (JSON REST)!`. (The server will block this terminal running as a daemon, this is completely normal!).
+   >  You will know everything executed perfectly when you spot this message in your terminal: `Démarrage de LightX API (JSON REST)!`. (The server will block this terminal running as a daemon, this is completely normal!).
 
 ### Step 4: Testing the endpoints
 
@@ -76,9 +76,9 @@ Congratulations, the server is live! Now, open a **strictly new terminal window*
   curl http://localhost:3000/sqlite/DbDemo
   ```
 
-🎉 **Expected result:** Each request instantly yields a deeply detailed JSON dashboard ("status: success"). This JSON proves the successful and ultra-fast background execution of complex queries (Batch Inserts, Native Pagination, Transactional Integrity).
+ **Expected result:** Each request instantly yields a deeply detailed JSON dashboard ("status: success"). This JSON proves the successful and ultra-fast background execution of complex queries (Batch Inserts, Native Pagination, Transactional Integrity).
 
-_(💡 **Pedagogical Import Note**: Wondering how your empty Docker containers suddenly obtained their tables? During your curl request, the "DbDemoBo" Business Object flawlessly imported and executed the raw SQL files located in the `migrations/` folder on-the-fly!)_
+> *( **Pedagogical Import Note**: Wondering how your empty Docker containers suddenly obtained their tables? During your curl request, the "DbDemoBo" Business Object flawlessly imported and executed the raw SQL files located in the `migrations/` folder on-the-fly!)*
 
 ---
 

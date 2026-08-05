@@ -61,16 +61,16 @@ static LOGGER_TX: OnceLock<SyncSender<LogMessage>> = OnceLock::new();
 /// Returns an [`std::io::Result`] which will be an `Err` if the directory is inaccessible or
 /// lacks write permissions.
 pub fn init(root_path: &str) -> std::io::Result<()> {
-    // Capacité fixée à 10_000 pour éviter les vulnérabilités de type OOM par épuisement mémoire (DoS)
+    // Hardcoded capacity of 10,000 bounds the MPSC channel to surgically prevent Out-Of-Memory (OOM) DoS attacks.
     let (tx, rx) = mpsc::sync_channel::<LogMessage>(10_000);
 
-    // On conserve le chemin racine en propre
+    // Persist the sanitized root path securely.
     let root = PathBuf::from(root_path);
 
-    // Fail-fast : Vérification immédiate et synchrone des permissions
+    // Fail-fast architecture: Immediate synchronous verification of filesystem permissions.
     fs::create_dir_all(&root)?;
 
-    // Le Thread O(1) de journalisation
+    // Spawn the detached O(1) disk I/O Thread.
     thread::spawn(move || {
         while let Ok(log_msg) = rx.recv() {
             let now = Local::now();
@@ -80,10 +80,10 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
             let mut dir_path = root.clone();
             dir_path.push(&date_str);
 
-            // Création paresseuse du dossier
+            // Lazy directory generation relying on runtime evaluation.
             if let Err(e) = fs::create_dir_all(&dir_path) {
                 eprintln!(
-                    " [LOGGER CRITICAL] Impossible de créer le dossier de log : {:?}",
+                    " [LOGGER CRITICAL] Impossible to create the log directory: {:?}",
                     e
                 );
                 continue;
@@ -92,7 +92,7 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
             let (file_name, log_line) = match log_msg.level {
                 LogLevel::Audit => (
                     format!("{}-{}.json", log_msg.level.as_str(), date_str),
-                    format!("{}\n", log_msg.message), // Pas de préfixe pour respecter le format NDJSON
+                    format!("{}\n", log_msg.message), // No prefix to inherently respect the NDJSON specification
                 ),
                 _ => (
                     format!("{}-{}.txt", log_msg.level.as_str(), date_str),
@@ -116,7 +116,7 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
                 Ok(f) => f,
                 Err(e) => {
                     eprintln!(
-                        " [LOGGER CRITICAL] Impossible d'ouvrir le fichier de log : {:?}",
+                        " [LOGGER CRITICAL] Impossible to open the log file: {:?}",
                         e
                     );
                     continue;
@@ -125,7 +125,7 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
 
             if let Err(e) = file.write_all(log_line.as_bytes()) {
                 eprintln!(
-                    " [LOGGER CRITICAL] Impossible d'écrire dans le fichier de log : {:?}",
+                    " [LOGGER CRITICAL] Impossible to write to the log file: {:?}",
                     e
                 );
             }
@@ -133,7 +133,7 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
     });
 
     LOGGER_TX.set(tx).unwrap_or_else(|_| {
-        eprintln!(" [LOGGER WARNING] Le logger a déjà été initialisé.");
+        eprintln!(" [LOGGER WARNING] The logger has already been initialized.");
     });
 
     Ok(())
@@ -153,11 +153,11 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
 /// ```
 pub fn write(level: LogLevel, message: String) {
     if let Some(tx) = LOGGER_TX.get() {
-        // Politique de drop (abandon) : on utilise `try_send` car il ne bloque pas l'exécution du thread HTTP.
-        // Si la file d'attente disque sature (Backpressure), les logs excédentaires sont jetés pour survivre.
+        // Explicit Drop Policy: We use `try_send` precisely because it never blocks the HTTP thread.
+        // If the disk I/O queue is saturated (Backpressure), excess logs are instantly discarded to ensure system survival.
         let _ = tx.try_send(LogMessage { level, message });
     } else {
-        // Repli par défaut sur la console si non configuré
+        // Fallback robustly to the console if no initialization occurred.
         eprintln!("[{}] {}", level.as_str().to_uppercase(), message);
     }
 }
@@ -265,7 +265,7 @@ pub fn init_telemetry(service_name: &str) -> Result<(), Box<dyn std::error::Erro
             .with(telemetry)
             .try_init()?;
     } else {
-        // Zéro-log boilerplate: activate local terminal tracing if Jaeger isn't available
+        // Zero-overhead fallback: Activate local terminal tracing gracefully if Jaeger is unavailable.
         let _ = tracing_subscriber::fmt().try_init();
     }
     Ok(())

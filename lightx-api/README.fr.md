@@ -18,7 +18,7 @@ Pour faire tourner ce projet, vous avez besoin des outils de base du langage Rus
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
-  _(⚠️ Indispensable pour les débutants : Une fois l'installation terminée, redémarrez votre terminal ou exécutez `source $HOME/.cargo/env` pour activer la commande `cargo`)._
+  > *( Indispensable pour les débutants : Une fois l'installation terminée, redémarrez votre terminal ou exécutez `source $HOME/.cargo/env` pour activer la commande `cargo`)._
 
 ### Étape 2 : Préparer les bases de données
 
@@ -27,7 +27,7 @@ Ce projet de démonstration montre la puissance de LightX sur 3 bases de donnée
 1. **SQLite** : Fonctionne dans la mémoire vive (`sqlite::memory:`). **Rien à installer !**
 2. **PostgreSQL & MySQL** : Le serveur va tenter de s'y connecter avec les identifiants présents dans le fichier `.env` (`localhost:5432` et `localhost:3306`).
 
-   👉 **Solution la plus simple (via Docker)** : Si vous avez Docker d'installé, vous pouvez instantanément créer et démarrer ces deux bases avec de bons identifiants via ces deux commandes :
+    **Solution la plus simple (via Docker)** : Si vous avez Docker d'installé, vous pouvez instantanément créer et démarrer ces deux bases avec de bons identifiants via ces deux commandes :
 
    ```bash
    # Lancer PostgreSQL
@@ -37,7 +37,7 @@ Ce projet de démonstration montre la puissance de LightX sur 3 bases de donnée
    docker run --name lightx-mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=lightx_test -p 3306:3306 -d mysql
    ```
 
-   _(💡 Si vous n'avez pas Docker, vous pouvez l'installer depuis docker.com. Sinon, vous pouvez exécuter vos propres instances locales et adapter les URLs `mysql://...` et `postgres://...` dans le fichier `.env` du projet)._
+   > *( Si vous n'avez pas Docker, vous pouvez l'installer depuis docker.com. Sinon, vous pouvez exécuter vos propres instances locales et adapter les URLs `mysql://...` et `postgres://...` dans le fichier `.env` du projet)._
 
 ### Étape 3 : Démarrer le serveur LightX
 
@@ -55,9 +55,9 @@ Maintenant que Rust est installé et que les bases de données tournent, vous po
    cargo run
    ```
 
-   > 💡 **Que se passe-t-il ici ?** Lors de ce démarrage automatisé, le framework va analyser tous vos modèles TOML stockés dans le dossier `schema/`, générer l'entièreté des requêtes SQL (DAO), orchestrer les routeurs (AOP), compiler le tout, puis lancer le puissant serveur asynchrone sécurisé sur le port `3000`.
+   >  **Que se passe-t-il ici ?** Lors de ce démarrage automatisé, le framework va analyser tous vos modèles TOML stockés dans le dossier `schema/`, générer l'entièreté des requêtes SQL (DAO), orchestrer les routeurs (AOP), compiler le tout, puis lancer le puissant serveur asynchrone sécurisé sur le port `3000`.
 
-   > ✅ Vous saurez que tout fonctionne parfaitement lorsque vous verrez apparaitre le message : `Démarrage de LightX API (JSON REST)!`. (Le serveur bloquera ce terminal, c'est normal, il attend vos requêtes).
+   >  Vous saurez que tout fonctionne parfaitement lorsque vous verrez apparaitre le message : `Démarrage de LightX API (JSON REST)!`. (Le serveur bloquera ce terminal, c'est normal, il attend vos requêtes).
 
 ### Étape 4 : Tester les points de terminaison (endpoints)
 
@@ -76,9 +76,9 @@ Félicitations, le serveur tourne ! Ouvrez maintenant un **tout nouveau terminal
   curl http://localhost:3000/sqlite/DbDemo
   ```
 
-🎉 **Résultat attendu :** Chaque requête vous retournera instantanément un tableau de bord JSON détaillé (« status: success »). Ce JSON prouve l'exécution réussie et ultra-rapide de requêtes complexes en tâche de fond (Insertions par lots, Pagination native, Intégrité des Transactions).
+ **Résultat attendu :** Chaque requête vous retournera instantanément un tableau de bord JSON détaillé (« status: success »). Ce JSON prouve l'exécution réussie et ultra-rapide de requêtes complexes en tâche de fond (Insertions par lots, Pagination native, Intégrité des Transactions).
 
-_(💡 **Note pédagogique d'import** : Vous vous demandez comment vos conteneurs Docker vides ont obtenu leurs tables ? Lors de cette requête, le Business Object "DbDemoBo" a importé et exécuté automatiquement les fichiers SQL présents dans le dossier `migrations/` avant d'insérer les données d'essai !)_
+> *( **Note pédagogique d'import** : Vous vous demandez comment vos conteneurs Docker vides ont obtenu leurs tables ? Lors de cette requête, le Business Object "DbDemoBo" a importé et exécuté automatiquement les fichiers SQL présents dans le dossier `migrations/` avant d'insérer les données d'essai !)*
 
 ---
 

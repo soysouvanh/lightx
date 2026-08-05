@@ -1,28 +1,41 @@
-//!  `lightx`: The "Zero-Overhead" Pedagogical Framework.
+//! # `lightx`: The Absolute Zero-Overhead Framework.
 //!
-//! LightX is an educational yet production-ready framework built on the
-//! "Database-First" paradigm. It relies on strict code generation at compile time
-//! (`build.rs`) to avoid runtime reflection, guaranteeing absolute type safety
-//! and maximum performance.
+//! LightX is an educational yet intensely production-ready HTTP and Web framework.
+//! Built around the absolute paradigm of "Database-First" and Aspect-Oriented Programming (AOP),
+//! it entirely avoids runtime reflection and dynamic dispatch overheads by generating highly
+//! optimized static routers, database models (via `daox`), and handlers at compile time (`build.rs`).
 //!
-//! # Architecture
-//! - `core`: Contains the global error management (`AppError`) and bail macros.
-//! - `dao_generator`: The build-time engine that introspects your MySQL database,
-//!   generates TOML dictionaries, and writes Rust `structs` directly into `OUT_DIR`.
-//! - `server`: The hardened Hyper HTTP server with anti-OOM, anti-Slowloris, TLS 1.3,
-//!   and military-grade security headers.
+//! ## Core Philosophy
+//! - **Mathematical Certainty:** By utilizing `build.rs` to generate strict structures (stored in `OUT_DIR`), the framework ensures that everything from databases to API schemas is guaranteed by the Rust compiler.
+//! - **Zero Dependencies at Runtime:** Unlike heavy ecosystems, LightX strips away orchestrators. The generated handlers bind directly to native hyper streams utilizing `moka` caches and `tokio` O(1) structures.
+//!
+//! ## Modules Overview
+//! - [`core`]: Provides the globally propagated `AppError`, safe bail macros, and background task orchestrators.
+//! - [`core_generator`]: Build-time engine generating the static Radix Tree (O(1) router) and `RequestContext`.
+//! - [`handler_generator`]: Build-time engine translating handler TOML definitions into exact Typed Extractor workflows.
+//! - [`logger`]: High-performance asynchronous MPSC-based logging (mathematically decoupling disk I/O from thread loops).
+//! - [`server`]: Hardened Hyper HTTP server enforcing DoS mitigations, strict TLS versions, and memory safety invariants.
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 
-// 🛡️ Military Strict Versioning Control
+//  Military Strict Versioning Control
 // Enforces the absolute physical presence of `CHANGELOG.md` at compile time.
 // Any `cargo publish` will mathematically crash if the documentation is decoupled.
 const _CHANGELOG_VALIDATION: &str = include_str!("../CHANGELOG.md");
 
+/// Core Application mechanisms (Errors, Enums, Macros, Tasks).
 pub mod core;
+
+/// Build-time engine yielding O(1) Static Routers and Global Context allocation logic.
 pub mod core_generator;
+
+/// Build-time engine parsing TOML ASTs into completely statically typed HTTP Handlers.
 pub mod handler_generator;
+
+/// O(1) Lock-free Asynchronous disk logger orchestrator protecting standard output.
 pub mod logger;
+
+/// Bare-metal `hyper` HTTP/HTTPS listener embedding military-grade connection constraints.
 pub mod server;
 
 /// Extensions re-exported for the generated code.

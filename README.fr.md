@@ -29,7 +29,7 @@ lightx-workspace/
 │   └── src/                # DAOs auto-générés & Business Objects métiers
 ```
 
-_Note : Si vous êtes un développeur novice cherchant à apprendre à coder sa propre application avec le framework LightX, rendez-vous immédiatement dans `lightx-test` !_
+> _Note : Si vous êtes un développeur novice cherchant à apprendre à coder sa propre application avec le framework LightX, rendez-vous immédiatement dans `lightx-test` !_
 
 ---
 
@@ -85,7 +85,7 @@ Pour comprendre LightX, il faut distinguer la magie automatique du code réel é
 
 1. **La Requête HTTP :** Le client envoie un `POST /api/users`.
 2. **Le Router (Core) & Validation :** L'aiguilleur ultra-rapide trouve le bon chemin en `O(1)`. Il lance immédiatement `check_parameters` pour vérifier la charge utile (ex: "l'email fait-il plus de 5 caractères ? est-il bien formaté ?"). Si c'est invalide, il renvoie instantanément une erreur `HTTP 400 JSON`. Rien ne se passe en BDD.
-3. **Le Handler (AOP) :** Votre requête est saine. Le Handler orchestre alors séquentiellement l'exécution des _Business Objects (BO)_ selon une phase de validation (Fail-Fast) puis une phase transactionnelle.
+3. **Le Handler (AOP) :** Votre requête est saine. Le Handler orchestre alors séquentiellement l'exécution des \_Business Objects (BO)\* selon une phase de validation (Fail-Fast) puis une phase transactionnelle.
 4. **Le BO (Business Object) :** La seule fonction que VOUS avez écrite. Elle prend la donnée pure (et déjà typée en toute sécurité), applique votre algorithme (ex: calcul de taxe, vérification de solde métier), et décide d'appeler les objets de données.
 5. **Le DAO :** Si votre BO a besoin de la BDD, le DAO ouvre _paresseusement_ (lazy load) la transaction réseau SQL et interroge la base via vos requêtes strictement vérifiées à la compilation.
 6. **La Réponse :** Le framework valide la transaction automatiquement, et sérialise de manière gracieuse les résultats dans un flux `HTTP 200 OK` (JSON ou HTML). S'il y a eu la moindre erreur native en cascade, le destructeur RAII gère le Rollback automatiquement en base.

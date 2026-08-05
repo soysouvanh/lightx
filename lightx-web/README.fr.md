@@ -6,7 +6,7 @@ Bienvenue dans l'interface Web pédagogique du framework LightX. Ce projet sert 
 
 ---
 
-## ⚡ Démarrage rapide (tutoriel pas à pas)
+##  Démarrage rapide (tutoriel pas à pas)
 
 Ce guide est conçu pour vous montrer toute l'étendue de l'architecture SSR (Server-Side Rendering) avec des performances State-of-the-Art.
 
@@ -33,7 +33,7 @@ L'avantage absolu de cette vitrine est qu'elle utilise **SQLite en mémoire vive
    cargo run
    ```
 
-> 💡 **Que se passe-t-il ici ?** Lors de la commande, le framework va :
+>  **Que se passe-t-il ici ?** Lors de la commande, le framework va :
 >
 > 1. Invoquer le compilateur **Tmplx** : Ce dernier lit le dossier `templates/`, vérifie mathématiquement la syntaxe, et convertit tout votre code HTML en macros Rust pures à vitesse `O(1)` sans aucune allocation dynamique (0 bytes de heap !).
 > 2. Analyser les modèles et orchestrer l'AOP de vos routeurs `handlers/`.
@@ -52,7 +52,7 @@ Vous découvrirez un tableau de bord (Dashboard) ultra-puissant qui démontre la
 
 ---
 
-## 🏗️ Architecture et fondations du SSR Rust
+##  Architecture et fondations du SSR Rust
 
 ### L'approche "Duck-Typing" du Tmplx Compiler
 

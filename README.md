@@ -32,7 +32,7 @@ lightx-workspace/
 │   └── src/                # Auto-generated DAOs & Manual Business Objects
 ```
 
-_Note: If you are a novice looking to learn how to build apps with LightX, we strongly recommend exploring `lightx-test`!_
+> _Note: If you are a novice looking to learn how to build apps with LightX, we strongly recommend exploring `lightx-test`!_
 
 ---
 
@@ -88,7 +88,7 @@ To understand LightX, you must distinguish the automatic code generation magic f
 
 1. **The HTTP Request:** The client sends a `POST /api/users`.
 2. **The Router (Core) & Validation:** The high-speed router finds the exact path in `O(1)`. It immediately calls `check_parameters` to verify the payload (e.g., "is the email > 5 characters? formatted correctly?"). If invalid, it short-circuits and returns an `HTTP 400 JSON`. Nothing hits the DB.
-3. **The Handler (AOP):** Your payload is perfectly safe. The Handler then orchestrates the sequential execution of your _Business Objects (BO)_ through a fail-fast validation phase, followed by a transaction processing phase.
+3. **The Handler (AOP):** Your payload is perfectly safe. The Handler then orchestrates the sequential execution of your \_Business Objects (BO)\* through a fail-fast validation phase, followed by a transaction processing phase.
 4. **The BO (Business Object):** This is the only function YOU write. It securely pulls the purely typed and validated data from memory, applies your logic (e.g., tax calculations, business assertions), and calls the data objects.
 5. **The DAO:** If your BO needs DB interaction, the DAO _lazily_ opens a networking connection to the database and talks strictly via compile-time validated SQL.
 6. **The Response:** The framework automatically commits the SQL transaction, elegantly serializes the return data as an `HTTP 200 OK` (JSON or HTML response). If any cascade failure happened, a RAII destructor automatically manages the DB Rollback.

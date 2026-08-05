@@ -412,7 +412,7 @@ impl lightx::server::ContextFactory for AppContextFactory {{
                                 let abs_str = current_path.to_string_lossy().replace("\\", "/");
 
                                 code.push_str(&format!(
-                                    "                    \"{}\" => {{\n",
+                                    "                    \"/{}\" => {{\n",
                                     file_rel_path
                                 ));
                                 code.push_str(&format!(

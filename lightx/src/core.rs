@@ -120,12 +120,13 @@ impl std::fmt::Display for AppError {
 impl std::error::Error for AppError {}
 
 #[diagnostic::on_unimplemented(
-    message = "Le Business Object doit renvoyer un type implémentant `IntoLightXResponse`",
-    label = "Type de retour non reconnu pour le routeur LightX",
-    note = "En principe, votre Business Object devrait retourner un `Result<T, AppError>` où T implémente IntoLightXResponse."
+    message = "The Business Object must return a type implementing `IntoLightXResponse`",
+    label = "Unrecognized return type for the LightX static Router",
+    note = "Architecturally, your Business Object should return a `Result<T, AppError>` where T implements `IntoLightXResponse`."
 )]
-/// Définit le contrat strict de restitution d'une réponse réseau depuis un Business Object.
-/// Ce trait est le socle de la pédagogie Rust (DX) via des erreurs de compilations sur-mesure.
+/// Defines the strict contract for yielding a network response from a Business Object (BO).
+/// This trait acts as the cornerstone of Rust DX pedagogy via tailored compilation errors.
+/// It strictly isolates business logic from raw Hyper HTTP constructs.
 ///
 /// # Examples
 ///
@@ -155,7 +156,9 @@ impl IntoLightXResponse for String {
 // is now passed as explicit, typed parameters through function signatures.
 
 #[macro_export]
-/// Interrompt le flux et retourne une `BusinessError` (HTTP 422).
+/// Instantly interrupts the execution flow and yields a `BusinessError` (HTTP 422 Unprocessable Entity).
+///
+/// Use this macro to enforce Domain/Business Rules flawlessly without cumbersome `return Err(...)` boilerplate.
 ///
 /// # Examples
 ///
@@ -163,8 +166,8 @@ impl IntoLightXResponse for String {
 /// use lightx::bail_business_rule;
 /// use lightx::core::AppError;
 ///
-/// fn check_business() -> Result<(), AppError> {
-///     bail_business_rule!("email", "Format d'email invalide.");
+/// fn check_domain() -> Result<(), AppError> {
+///     bail_business_rule!("email", "Invalid strictly formatted email string.");
 ///     Ok(())
 /// }
 /// ```
@@ -180,7 +183,9 @@ macro_rules! bail_business_rule {
 }
 
 #[macro_export]
-/// Interrompt le flux et retourne une `AuthenticationError` (HTTP 401).
+/// Instantly interrupts the execution flow and yields an `AuthenticationError` (HTTP 401 Unauthorized).
+///
+/// Designed to reject unauthenticated requests seamlessly in the AOP workflow.
 ///
 /// # Examples
 ///
@@ -189,7 +194,7 @@ macro_rules! bail_business_rule {
 /// use lightx::core::AppError;
 ///
 /// fn check_auth() -> Result<(), AppError> {
-///     bail_authentication!("Token expiré ou invalide.");
+///     bail_authentication!("Token structurally expired or mathematically invalid.");
 ///     Ok(())
 /// }
 /// ```
@@ -204,7 +209,9 @@ macro_rules! bail_authentication {
 }
 
 #[macro_export]
-/// Interrompt le flux et retourne une `PermissionError` (HTTP 403).
+/// Instantly interrupts the execution flow and yields a `PermissionError` (HTTP 403 Forbidden).
+///
+/// Ideal for Role-Based Access Control (RBAC) constraints when the user is recognized but not authorized.
 ///
 /// # Examples
 ///
@@ -212,8 +219,8 @@ macro_rules! bail_authentication {
 /// use lightx::bail_permission;
 /// use lightx::core::AppError;
 ///
-/// fn check_permission() -> Result<(), AppError> {
-///     bail_permission!("Vous n'avez pas les droits d'administration.");
+/// fn assert_admin() -> Result<(), AppError> {
+///     bail_permission!("You inherently lack administration privileges.");
 ///     Ok(())
 /// }
 /// ```
@@ -228,7 +235,9 @@ macro_rules! bail_permission {
 }
 
 #[macro_export]
-/// Interrompt le flux et retourne une `SystemError` (HTTP 500).
+/// Instantly interrupts the execution flow and yields a `SystemError` (HTTP 500 Internal Server Error).
+///
+/// Used exclusively for unrecoverable infrastructure faults (e.g. Memory allocation failure, network dropout).
 ///
 /// # Examples
 ///
@@ -236,8 +245,8 @@ macro_rules! bail_permission {
 /// use lightx::bail_system;
 /// use lightx::core::AppError;
 ///
-/// fn check_system() -> Result<(), AppError> {
-///     bail_system!("Erreur matérielle inattendue.");
+/// fn parse_config() -> Result<(), AppError> {
+///     bail_system!("Unexpected hardware I/O disconnection.");
 ///     Ok(())
 /// }
 /// ```

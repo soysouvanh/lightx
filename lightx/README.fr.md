@@ -37,7 +37,7 @@ Ce répertoire (`lightx/`) constitue le "moteur sous le capot". Il abrite la log
 Bien que la génération de code soit complexe, le cycle de vie d'une requête HTTP générée par LightX repose sur des composants très stricts qui s'emboîtent séquentiellement :
 
 1. **Le Routeur (Core) & Validation :** Le serveur HTTP intercepte la requête et l'Aiguilleur natif (Core) l'inspecte en un temps `O(1)`. Il exécute ensuite sa fonction générée `check_parameters` pour valider l'intégrité de la donnée via les schémas, et procède au _cast_ (typage strict).
-2. **Le Handler (AOP) :** Totalement généré, il agit en tant qu'orchestrateur. Il déroule l'exécution des _Business Objects (BO)_ selon deux grands groupes configurés en TOML : les validations (pures) puis les traitements (sécurisés par transaction).
+2. **Le Handler (AOP) :** Totalement généré, il agit en tant qu'orchestrateur. Il déroule l'exécution des _Business Objects (BO)* selon deux grands groupes configurés en TOML : les validations (pures) puis les traitements (sécurisés par transaction).
 3. **Le BO (Business Object) - _Code Manuel_ :** Le cœur du métier de l'application ! Le code manuel écrit par le développeur prend le relais. Il applique les algorithmes métiers sur des données 100% fiables, pures, et sollicite les DAO si nécessaire.
 4. **Le DAO - _Généré et Manuel_ :** S'il y a des écritures en BDD, le DAO généré ouvre paresseusement (lazy load) une connexion réseau et exécute des requêtes SQL fortement typées.
 5. **Le Retour (Réponse HTTP) :** Dès que le BO a terminé, l'AOP reprend la main. Si un succès remonte, le Core émet un `COMMIT` SQL. Sinon, la moindre erreur entraine l'exécution du destructeur formel (RAII) et déclenche un `ROLLBACK` automatique.
