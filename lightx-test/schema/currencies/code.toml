@@ -1,34 +1,27 @@
-[type]
-value = "String"
-message = "schema.type.message"
+[business_rules]
 
-[is_optional]
-value = false
-message = "schema.is_optional.message"
-
-# [enum_values]
-# value = []
-# message = 
-
-[max_length]
-value = 3
-message = "schema.max_length.message|3"
-
-[min_length]
-value = 1
-message = "schema.min_length.message|1"
-
-# [min_value]
-# value = 
-# message = 
-
-# [max_value]
-# value = 
-# message = 
+[enum_values]
+value = []
 
 [format]
-value = '^[À-ÿA-Za-z0-9_ -]*$'
 message = "schema.format.message"
+value = "^[À-ÿA-Za-z0-9_ -]*$"
+
+[has_default]
+value = false
+
+[is_auto_increment]
+value = false
+
+[is_generated]
+value = false
+
+[is_index]
+value = false
+
+[is_optional]
+message = "schema.is_optional.message"
+value = false
 
 [is_primary_key]
 value = true
@@ -36,11 +29,14 @@ value = true
 [is_unique]
 value = false
 
-[is_index]
-value = false
+[max_length]
+message = "schema.max_length.message|3"
+value = 3
 
-[is_auto_increment]
-value = false
+[min_length]
+message = "schema.min_length.message|1"
+value = 1
 
-[business_rules]
-
+[type]
+message = "schema.type.message"
+value = "String"

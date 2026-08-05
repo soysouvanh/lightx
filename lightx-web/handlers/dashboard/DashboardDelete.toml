@@ -1,0 +1,4 @@
+name = "DashboardDelete"
+method = "POST"
+path = "/dashboard/delete"
+bo_class = "crate::bo::dashboard_bo::DashboardDeleteBo"

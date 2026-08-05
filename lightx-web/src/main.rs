@@ -1,9 +1,15 @@
 use lightx::server;
 use std::sync::Arc;
 
-pub mod bo;
+#[macro_use]
+#[allow(unused_variables)]
+pub mod generated {
+    include!(concat!(env!("OUT_DIR"), "/template_gen.rs"));
+}
 
-include!(concat!(env!("OUT_DIR"), "/daox_generated.rs"));
+pub mod bo;
+pub mod daox_generated;
+pub use daox_generated::*;
 include!(concat!(env!("OUT_DIR"), "/lightx_handlers_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/lightx_core_generated.rs"));
 

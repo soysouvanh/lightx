@@ -1,0 +1,4 @@
+name = "DashboardList"
+method = "GET"
+path = "/dashboard"
+bo_class = "crate::bo::dashboard_bo::DashboardListBo"

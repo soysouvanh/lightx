@@ -6,6 +6,10 @@ authors.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+default = ["validation"]
+validation = []
+
 [dependencies]
 lightx = { path = "../lightx" }
 tokio = { version = "1.37.0", features = ["full"] }
@@ -20,9 +24,10 @@ sqlx = { version = "0.9", features = [
 dotenvy = "0.15"
 futures = "0.3.33"
 chrono = { version = "0.4", features = ["serde"] }
+regex = "1.13.1"
 
 [build-dependencies]
-daox = { version = "0.2.5", path = "../../daox-workspace/daox", default-features = false, features = [
+daox = { version = "0.2.7", path = "../../daox-workspace/daox", default-features = false, features = [
     "sqlite",
     "postgres",
     "mysql",

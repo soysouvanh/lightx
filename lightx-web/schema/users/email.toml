@@ -1,0 +1,38 @@
+[business_rules]
+
+[enum_values]
+value = []
+
+[format]
+message = "schema.format.message"
+value = '^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$'
+
+[has_default]
+value = false
+
+[is_auto_increment]
+value = false
+
+[is_generated]
+value = false
+
+[is_index]
+value = false
+
+[is_optional]
+message = "schema.is_optional.message"
+value = false
+
+[is_primary_key]
+value = false
+
+[is_unique]
+value = false
+
+[min_length]
+message = "schema.min_length.message|1"
+value = 1
+
+[type]
+message = "schema.type.message"
+value = "String"

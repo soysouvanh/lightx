@@ -1,0 +1,39 @@
+// Code generated automatically by daox. DO NOT EDIT.
+// Pure sqlx layer – zero framework dependency.
+
+pub mod mysql_categories;
+pub use mysql_categories::*;
+pub mod mysql_groups;
+pub use mysql_groups::*;
+pub mod mysql_roles;
+pub use mysql_roles::*;
+pub mod mysql_user_groups;
+pub use mysql_user_groups::*;
+pub mod mysql_user_preferences;
+pub use mysql_user_preferences::*;
+pub mod mysql_users;
+pub use mysql_users::*;
+pub mod postgres_categories;
+pub use postgres_categories::*;
+pub mod postgres_groups;
+pub use postgres_groups::*;
+pub mod postgres_roles;
+pub use postgres_roles::*;
+pub mod postgres_user_groups;
+pub use postgres_user_groups::*;
+pub mod postgres_user_preferences;
+pub use postgres_user_preferences::*;
+pub mod postgres_users;
+pub use postgres_users::*;
+pub mod sqlite_categories;
+pub use sqlite_categories::*;
+pub mod sqlite_groups;
+pub use sqlite_groups::*;
+pub mod sqlite_roles;
+pub use sqlite_roles::*;
+pub mod sqlite_user_groups;
+pub use sqlite_user_groups::*;
+pub mod sqlite_user_preferences;
+pub use sqlite_user_preferences::*;
+pub mod sqlite_users;
+pub use sqlite_users::*;

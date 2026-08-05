@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 pub mod bo;
 
-include!(concat!(env!("OUT_DIR"), "/daox_generated.rs"));
+pub mod daox_generated;
+pub use daox_generated::*;
 include!(concat!(env!("OUT_DIR"), "/lightx_handlers_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/lightx_core_generated.rs"));
 

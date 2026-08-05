@@ -1,0 +1,4 @@
+name = "DashboardView"
+method = "GET"
+path = "/dashboard/view"
+bo_class = "crate::bo::dashboard_bo::DashboardViewBo"

@@ -110,7 +110,8 @@ use std::sync::Arc;
 
 pub mod bo;
 
-include!(concat!(env!("OUT_DIR"), "/daox_generated.rs"));
+pub mod daox_generated;
+pub use daox_generated::*;
 include!(concat!(env!("OUT_DIR"), "/lightx_handlers_generated.rs"));
 include!(concat!(env!("OUT_DIR"), "/lightx_core_generated.rs"));
 
@@ -149,9 +150,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let schema_dir = PathBuf::from(manifest_dir.clone()).join("schema");
     let out_dir = env::var("OUT_DIR").unwrap();
 
+    let daox_out_dir = PathBuf::from(manifest_dir.clone()).join("src").join("daox_generated");
+    std::fs::create_dir_all(&daox_out_dir).unwrap_or_default();
+
     let dao_gen = DaoGenerator::new(
         schema_dir.to_str().unwrap(),
-        &out_dir
+        daox_out_dir.to_str().unwrap()
     );
 
     // =====================================================================

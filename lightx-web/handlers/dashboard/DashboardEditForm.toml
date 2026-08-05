@@ -1,0 +1,4 @@
+name = "DashboardEditForm"
+method = "GET"
+path = "/dashboard/edit"
+bo_class = "crate::bo::dashboard_bo::DashboardEditFormBo"

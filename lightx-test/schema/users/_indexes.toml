@@ -1,10 +1,12 @@
 [[indexes]]
+name = "idx_name"
+is_unique = false
+columns = [
+    "last_name",
+    "first_name",
+]
+
+[[indexes]]
 name = "idx_email"
 is_unique = true
 columns = ["email"]
-
-[[indexes]]
-name = "idx_name"
-is_unique = false
-columns = ["last_name", "first_name"]
-

@@ -1,0 +1,4 @@
+name = "DashboardAdd"
+method = "POST"
+path = "/dashboard/add"
+bo_class = "crate::bo::dashboard_bo::DashboardAddBo"

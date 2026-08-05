@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Liste des Utilisateurs</h1>
+    <a href="/dashboard" class="btn btn-info">Actualiser</a>
+</div>
+
+{% if view_data.message.len() > 0 %}
+<div class="alert">
+    {%%= view_data.message %}
+</div>
+{% endif %}
+
+<div class="users-list">
+    {% if view_data.users.is_empty() %}
+        <p>Aucun utilisateur trouvé dans la base de données. Ajoutez-en un ci-dessous.</p>
+    {% else %}
+        {% for user in view_data.users %}
+            {% include "_user_card.html" %}
+        {% endfor %}
+    {% endif %}
+</div>
+
+<hr style="margin: 30px 0;">
+
+<h2>Ajouter un utilisateur</h2>
+<form action="/dashboard/add" method="POST">
+    <div class="form-group">
+        <label for="pseudo">Pseudo</label>
+        <input type="text" id="pseudo" name="pseudo" required>
+    </div>
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required>
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="is_admin" value="true"> Est Administrateur ?
+        </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Créer</button>
+</form>
+{% endblock %}

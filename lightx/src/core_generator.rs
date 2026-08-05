@@ -230,7 +230,7 @@ impl AppContextFactory {{
         Ok(Self {{
             global_state: std::sync::Arc::new(lightx::ext::tokio::sync::broadcast::channel(1024).0),
             rate_limiter: std::sync::Arc::new(lightx::ext::moka::sync::Cache::builder().build()),
-            response_cache: std::sync::Arc::new(lightx::ext::moka::sync::Cache::builder().build()),
+            response_cache: std::sync::Arc::new(lightx::ext::moka::sync::Cache::builder().max_capacity(10_000).build()),
 {}
         }})
     }}

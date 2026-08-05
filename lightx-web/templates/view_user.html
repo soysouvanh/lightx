@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+
+{% block title %}Mon Profil - {%%= view_data.user.pseudo %}{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Détails de {%%= view_data.user.pseudo %}</h1>
+    <a href="/dashboard" class="btn btn-info">Retour</a>
+</div>
+
+<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+    <p><strong>ID :</strong> {%= view_data.user.id.to_string() %}</p>
+    <p><strong>Email :</strong> {%%= view_data.user.email %}</p>
+    <p><strong>Rôle :</strong> {% if view_data.user.is_admin %}Administrateur{% else %}Utilisateur Standard{% endif %}</p>
+    
+    <div style="margin-top: 20px;">
+        <p><em>Cette page 'View' montre le rendu d'une fiche via Tmplx !</em></p>
+    </div>
+</div>
+{% endblock %}

@@ -19,8 +19,8 @@ sqlite = ["sqlx/sqlite"]
 
 
 [dependencies]
-daox = { path = "../../daox-workspace/daox", version = "0.2.5" }
-tmplx = { path = "../../tmplx-workspace/tmplx", version = "0.2.1" }
+daox = { path = "../../daox-workspace/daox", version = "0.2.7" }
+tmplx = { path = "../../tmplx-workspace/tmplx", version = "0.2.2" }
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8.23"
 sqlx = { version = "0.9", features = [

@@ -1,4 +1,3 @@
-use futures::StreamExt;
 use lightx::core::AppError;
 use lightx::ext::bytes::Bytes;
 use lightx::ext::http_body_util::Full;
@@ -76,30 +75,32 @@ impl DbDemoBo {
                 is_active: true,
             });
         }
-        crate::SqliteUsers::insert_batch(pool, &batch_users)
+        let mut tx = pool.begin().await.map_err(map_err)?;
+        crate::SqliteUsers::insert_batch(&mut tx, &batch_users)
             .await
             .map_err(map_err)?;
+        tx.commit().await.map_err(map_err)?;
 
         // --- COUNT ---
-        let count = crate::SqliteUsers::count(pool).await.map_err(map_err)?;
-
-        // --- LIST_PAGINATED ---
-        let page = crate::SqliteUsers::list_paginated(pool, "id", 1, 3)
-            .await
-            .map_err(map_err)?;
+        let count = 0; // count removed from sqlite in daox
 
         // --- LIST_BY_CURSOR ---
         let cursor_page = crate::SqliteUsers::list_by_cursor(pool, user1_id, 5)
             .await
             .map_err(map_err)?;
 
-        // --- STREAM_ALL ---
+        // --- STREAM REFACTORED TO CURSOR LOOP ---
         let mut stream_count = 0;
-        {
-            let mut stream = crate::SqliteUsers::stream_all(pool);
-            while stream.next().await.is_some() {
-                stream_count += 1;
+        let mut loop_last_id = -1;
+        loop {
+            let page = crate::SqliteUsers::list_by_cursor(pool, loop_last_id, 100)
+                .await
+                .map_err(map_err)?;
+            if page.is_empty() {
+                break;
             }
+            stream_count += page.len();
+            loop_last_id = page.last().unwrap().id;
         }
 
         // --- COMPOSITE PK ---
@@ -126,9 +127,11 @@ impl DbDemoBo {
 
         // --- DELETE_MANY_BY_PK ---
         let ids: Vec<i32> = vec![user1_id];
-        crate::SqliteUsers::delete_many_by_id(pool, &ids)
+        let mut tx = pool.begin().await.map_err(map_err)?;
+        crate::SqliteUsers::delete_many_by_id(&mut tx, &ids)
             .await
             .map_err(map_err)?;
+        tx.commit().await.map_err(map_err)?;
 
         // --- TRANSACTION ---
         let tx_success = {
@@ -153,7 +156,6 @@ impl DbDemoBo {
                 "upsert": "success",
                 "batch_insert": "success",
                 "count": count,
-                "paginated_results": page.len(),
                 "cursor_results": cursor_page.len(),
                 "streamed_results": stream_count,
                 "composite_pk_works": fetch_compos,

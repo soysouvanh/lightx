@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}Éditer {%%= view_data.user.pseudo %}{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Modifier {%%= view_data.user.pseudo %}</h1>
+    <a href="/dashboard" class="btn btn-info">Retour</a>
+</div>
+
+<form action="/dashboard/edit" method="POST">
+    <input type="hidden" name="id" value="{%= view_data.user.id.to_string() %}">
+    <div class="form-group">
+        <label for="pseudo">Pseudo</label>
+        <input type="text" id="pseudo" name="pseudo" value="{%%= view_data.user.pseudo %}" required>
+    </div>
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{%%= view_data.user.email %}" required>
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="is_admin" value="true" {% if view_data.user.is_admin %}checked{% endif %}> Est Administrateur ?
+        </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Sauvegarder les modifications</button>
+</form>
+{% endblock %}

@@ -267,6 +267,8 @@ impl HandlerGenerator {
                             is_auto_increment: daox::Property::Simple(false),
                             is_unique: daox::Property::Simple(false),
                             is_index: daox::Property::Simple(false),
+                            has_default: daox::Property::Simple(false),
+                            is_generated: daox::Property::Simple(false),
                             business_rules: col_override.business_rules.unwrap_or_default(),
                         }
                     } else {
@@ -417,7 +419,7 @@ impl HandlerGenerator {
                 );
                 code.push_str(&format!("    pub fn check_parameters(ctx: &crate::RequestContext) -> Result<{}, lightx::core::AppError> {{\n", payload_name));
                 code.push_str("        let body_bytes = if ctx.raw_body.is_empty() { b\"{}\".as_slice() } else { &ctx.raw_body };\n");
-                code.push_str(&format!("        let payload: {} = lightx::ext::serde_json::from_slice(body_bytes).map_err(|e| lightx::core::AppError::ParameterError {{ field: \"body\".into(), msg: format!(\"Malformed JSON: {{}}\", e).into(), file: file!(), line: line!() }})?;\n\n", payload_name));
+                code.push_str(&format!("        let payload: {} = lightx::ext::serde_json::from_slice(body_bytes).map_err(|_| lightx::core::AppError::ParameterError {{ field: \"body\".into(), msg: \"Malformed JSON payload\".into(), file: file!(), line: line!() }})?;\n\n", payload_name));
 
                 // 2. Validation Phase directly on the parsed struct
                 for (param_name, meta) in &field_metas {

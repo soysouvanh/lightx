@@ -14,7 +14,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let schema_dir = PathBuf::from(manifest_dir.clone()).join("schema");
     let out_dir = env::var("OUT_DIR").unwrap();
 
-    let dao_gen = DaoGenerator::new(schema_dir.to_str().unwrap(), &out_dir);
+    let template_dir = std::path::Path::new("templates");
+    let output_path = std::path::Path::new(&out_dir);
+    tmplx::compiler::build_workspace(template_dir, output_path);
+
+    let daox_out_dir = PathBuf::from(manifest_dir.clone())
+        .join("src")
+        .join("daox_generated");
+    std::fs::create_dir_all(&daox_out_dir).unwrap_or_default();
+    let dao_gen = DaoGenerator::new(schema_dir.to_str().unwrap(), daox_out_dir.to_str().unwrap());
 
     // Offline DB approach (use the TOML files)
     if let Ok(url) = env::var("DATABASE_URL") {

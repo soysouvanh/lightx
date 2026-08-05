@@ -34,9 +34,14 @@ fn main() {
 
     // The isolated target directory injected by Cargo (absolute isolation of generated code)
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR environment variable is not set");
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let daox_out_dir = std::path::PathBuf::from(manifest_dir)
+        .join("src")
+        .join("daox_generated");
+    std::fs::create_dir_all(&daox_out_dir).unwrap_or_default();
 
     // Instantiation of the "Shift-Left" generation framework
-    let generator = DaoGenerator::new(&schema_dir, &out_dir);
+    let generator = DaoGenerator::new(&schema_dir, daox_out_dir.to_str().unwrap());
 
     // =====================================================================
     // 1. DATABASE-FIRST: Introspection and TOML Dictionary Generation

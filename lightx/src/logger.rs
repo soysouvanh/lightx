@@ -3,7 +3,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::{self, SyncSender};
 use std::thread;
 
 /// Represents the severity level of a log message.
@@ -39,8 +39,7 @@ pub struct LogMessage {
     pub message: String,
 }
 
-static LOGGER_TX: OnceLock<Sender<LogMessage>> = OnceLock::new();
-
+static LOGGER_TX: OnceLock<SyncSender<LogMessage>> = OnceLock::new();
 /// Initializes the asynchronous, O(1) logging manager.
 ///
 /// This function launches a dedicated OS thread in the background to ensure that HTTP
@@ -62,7 +61,8 @@ static LOGGER_TX: OnceLock<Sender<LogMessage>> = OnceLock::new();
 /// Returns an [`std::io::Result`] which will be an `Err` if the directory is inaccessible or
 /// lacks write permissions.
 pub fn init(root_path: &str) -> std::io::Result<()> {
-    let (tx, rx) = mpsc::channel::<LogMessage>();
+    // Capacité fixée à 10_000 pour éviter les vulnérabilités de type OOM par épuisement mémoire (DoS)
+    let (tx, rx) = mpsc::sync_channel::<LogMessage>(10_000);
 
     // On conserve le chemin racine en propre
     let root = PathBuf::from(root_path);
@@ -153,8 +153,9 @@ pub fn init(root_path: &str) -> std::io::Result<()> {
 /// ```
 pub fn write(level: LogLevel, message: String) {
     if let Some(tx) = LOGGER_TX.get() {
-        // Le `.send()` d'un `mpsc::channel` standard est non-bloquant en mémoire.
-        let _ = tx.send(LogMessage { level, message });
+        // Politique de drop (abandon) : on utilise `try_send` car il ne bloque pas l'exécution du thread HTTP.
+        // Si la file d'attente disque sature (Backpressure), les logs excédentaires sont jetés pour survivre.
+        let _ = tx.try_send(LogMessage { level, message });
     } else {
         // Repli par défaut sur la console si non configuré
         eprintln!("[{}] {}", level.as_str().to_uppercase(), message);

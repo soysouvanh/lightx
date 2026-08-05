@@ -130,20 +130,7 @@ async fn handle_request<C: Send + 'static>(
         has_upgrade && has_connection
     };
 
-    let mut client_ip = peer_addr;
-    if let Some(xff) = req.headers().get("x-forwarded-for") {
-        if let Ok(s) = xff.to_str()
-            && let Some(first) = s.split(',').next()
-            && let Ok(ip) = first.trim().parse()
-        {
-            client_ip = ip;
-        }
-    } else if let Some(xreal) = req.headers().get("x-real-ip")
-        && let Ok(s) = xreal.to_str()
-        && let Ok(ip) = s.trim().parse()
-    {
-        client_ip = ip;
-    }
+    let client_ip = peer_addr;
 
     let method;
     let uri;

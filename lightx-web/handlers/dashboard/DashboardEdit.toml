@@ -1,0 +1,4 @@
+name = "DashboardEdit"
+method = "POST"
+path = "/dashboard/edit"
+bo_class = "crate::bo::dashboard_bo::DashboardEditBo"

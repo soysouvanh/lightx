@@ -1,10 +1,12 @@
 [[indexes]]
-name = "idx_user_role"
-is_unique = true
-columns = ["user_id", "role_name"]
-
-[[indexes]]
 name = "idx_user_id"
 is_unique = false
 columns = ["user_id"]
 
+[[indexes]]
+name = "idx_user_role"
+is_unique = true
+columns = [
+    "user_id",
+    "role_name",
+]
