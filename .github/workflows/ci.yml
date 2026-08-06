@@ -18,6 +18,13 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
+    - name: Scaffold .env files for CoreGenerator
+      run: |
+        echo "SQLITE_DATABASE_URL=sqlite::memory:" > lightx-api/.env
+        echo "MYSQL_DATABASE_URL=mysql://offline" >> lightx-api/.env
+        echo "POSTGRES_DATABASE_URL=postgres://offline" >> lightx-api/.env
+        echo "DATABASE_URL=sqlite://offline" > lightx-web/.env
+        echo "DATABASE_URL=mysql://offline" > lightx-test/.env
     - name: Run Clippy
       run: cargo clippy --workspace --all-targets -- -D warnings
     - name: Run Tests
@@ -32,6 +39,13 @@ jobs:
       uses: dtolnay/rust-toolchain@nightly
       with:
         components: miri
+    - name: Scaffold .env files for CoreGenerator
+      run: |
+        echo "SQLITE_DATABASE_URL=sqlite::memory:" > lightx-api/.env
+        echo "MYSQL_DATABASE_URL=mysql://offline" >> lightx-api/.env
+        echo "POSTGRES_DATABASE_URL=postgres://offline" >> lightx-api/.env
+        echo "DATABASE_URL=sqlite://offline" > lightx-web/.env
+        echo "DATABASE_URL=mysql://offline" > lightx-test/.env
     - name: Miri Check
       run: cargo miri test --workspace
       env:
