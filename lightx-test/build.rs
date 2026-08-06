@@ -48,7 +48,10 @@ fn main() {
     // =====================================================================
     // We simulate the `daox` behavior: read the live Database and generate
     // the configuration files into the `schema/` folder.
-    if let Ok(db_url) = env::var("DATABASE_URL") {
+    if let Some(db_url) = env::var("DATABASE_URL")
+        .ok()
+        .filter(|u| u != "offline" && env::var("CI").is_err())
+    {
         // `build.rs` is inherently synchronous, so we instantiate a Tokio runtime
         // to handle the async introspection.
         tokio::runtime::Runtime::new().unwrap().block_on(async {

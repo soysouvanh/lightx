@@ -25,7 +25,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dao_gen = DaoGenerator::new(schema_dir.to_str().unwrap(), daox_out_dir.to_str().unwrap());
 
     // Offline DB approach (use the TOML files)
-    if let Ok(url) = env::var("DATABASE_URL") {
+    if let Some(url) = env::var("DATABASE_URL")
+        .ok()
+        .filter(|u| u != "offline" && env::var("CI").is_err())
+    {
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let _ = dao_gen.introspect(&url).await;
         });

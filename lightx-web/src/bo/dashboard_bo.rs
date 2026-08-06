@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_if)]
 //! # Dashboard Business Object
 //!
 //! This module provides a complete End-to-End demonstrative CRUD (Create, Read, Update, Delete)

@@ -1664,7 +1664,7 @@ dependencies = [
 
 [[package]]
 name = "lightx"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "bytes",
  "chrono",
@@ -1704,7 +1704,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-api"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "chrono",
  "daox",
@@ -1721,7 +1721,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-benchmark"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "axum",
  "bytes",
@@ -1735,7 +1735,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-cli"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "clap",
  "daox",
@@ -1747,7 +1747,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-macro"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1756,7 +1756,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-test"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "chrono",
  "daox",
@@ -1772,7 +1772,7 @@ dependencies = [
 
 [[package]]
 name = "lightx-web"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "daox",
  "dotenvy",

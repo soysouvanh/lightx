@@ -580,41 +580,6 @@ impl Users {
         Ok(result.rows_affected())
     }
 
-    pub async fn get_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
-        executor: E,
-        email: &str,
-    ) -> sqlx::Result<Option<Self>> {
-        let query = r#"SELECT `created_at`, `email`, `first_name`, `id`, `last_name`, `status` FROM `users` WHERE `email` = ?"#;
-        sqlx::query_as::<_, Self>(query)
-            .bind(email)
-            .fetch_optional(executor)
-            .await
-    }
-
-    pub async fn exists_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
-        executor: E,
-        email: &str,
-    ) -> sqlx::Result<bool> {
-        let query = r#"SELECT 1 FROM `users` WHERE `email` = ? LIMIT 1"#;
-        let exists: Option<(i32,)> = sqlx::query_as(query)
-            .bind(email)
-            .fetch_optional(executor)
-            .await?;
-        Ok(exists.is_some())
-    }
-
-    pub async fn delete_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
-        executor: E,
-        email: &str,
-    ) -> sqlx::Result<u64> {
-        let query = r#"DELETE FROM `users` WHERE `email` = ?"#;
-        let result = sqlx::query::<sqlx::MySql>(query)
-            .bind(email)
-            .execute(executor)
-            .await?;
-        Ok(result.rows_affected())
-    }
-
     pub async fn list_by_last_name_and_first_name<
         'e,
         E: sqlx::Executor<'e, Database = sqlx::MySql>,
@@ -688,6 +653,41 @@ impl Users {
         let result = sqlx::query::<sqlx::MySql>(query)
             .bind(last_name)
             .bind(first_name)
+            .execute(executor)
+            .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn get_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
+        executor: E,
+        email: &str,
+    ) -> sqlx::Result<Option<Self>> {
+        let query = r#"SELECT `created_at`, `email`, `first_name`, `id`, `last_name`, `status` FROM `users` WHERE `email` = ?"#;
+        sqlx::query_as::<_, Self>(query)
+            .bind(email)
+            .fetch_optional(executor)
+            .await
+    }
+
+    pub async fn exists_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
+        executor: E,
+        email: &str,
+    ) -> sqlx::Result<bool> {
+        let query = r#"SELECT 1 FROM `users` WHERE `email` = ? LIMIT 1"#;
+        let exists: Option<(i32,)> = sqlx::query_as(query)
+            .bind(email)
+            .fetch_optional(executor)
+            .await?;
+        Ok(exists.is_some())
+    }
+
+    pub async fn delete_by_email<'e, E: sqlx::Executor<'e, Database = sqlx::MySql>>(
+        executor: E,
+        email: &str,
+    ) -> sqlx::Result<u64> {
+        let query = r#"DELETE FROM `users` WHERE `email` = ?"#;
+        let result = sqlx::query::<sqlx::MySql>(query)
+            .bind(email)
             .execute(executor)
             .await?;
         Ok(result.rows_affected())
